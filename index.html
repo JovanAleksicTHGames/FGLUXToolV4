@@ -157,59 +157,93 @@
         }
 
         async function updateUI() {
-            console.log('Updating UI...');
+            console.log('=== Updating UI ===');
             try {
                 const selection = await miro.board.getSelection();
-                console.log('Current selection:', selection);
+                console.log('Raw selection:', selection);
+                console.log('Selection is array:', Array.isArray(selection));
                 console.log('Selection length:', selection ? selection.length : 0);
                 
-                if (!selection) {
-                    console.log('No selection returned');
+                if (!selection || !Array.isArray(selection)) {
+                    console.log('Invalid selection returned');
                     return;
                 }
                 
                 const numbers = [];
-                for (const item of selection) {
-                    console.log('Item:', item.type, item.content);
+                for (let i = 0; i < selection.length; i++) {
+                    const item = selection[i];
+                    console.log(`Item ${i}:`, {
+                        type: item.type,
+                        content: item.content,
+                        id: item.id
+                    });
+                    
                     if (item.type === 'sticky_note' && item.content) {
-                        const num = parseFloat(item.content.trim());
+                        const cleanContent = item.content.trim();
+                        console.log(`Parsing content "${cleanContent}"`);
+                        const num = parseFloat(cleanContent);
+                        console.log(`Parsed number: ${num}, isNaN: ${isNaN(num)}`);
                         if (!isNaN(num)) {
                             numbers.push(num);
                         }
                     }
                 }
                 
-                console.log('Numbers found:', numbers);
+                console.log('Final numbers array:', numbers);
                 const hasEnough = numbers.length >= 2;
-                console.log('Has enough numbers:', hasEnough);
+                console.log('Has enough numbers (>=2):', hasEnough);
                 
                 const sumBtn = document.getElementById('sumBtn');
                 const productBtn = document.getElementById('productBtn');
                 const selectionDiv = document.getElementById('selection');
                 
+                console.log('Sum button element:', sumBtn);
+                console.log('Product button element:', productBtn);
+                
                 if (sumBtn) {
+                    console.log('Sum button disabled before:', sumBtn.disabled);
                     sumBtn.disabled = !hasEnough;
-                    console.log('Sum button disabled:', !hasEnough);
+                    console.log('Sum button disabled after:', sumBtn.disabled);
+                    // Force enable for testing
+                    if (numbers.length > 0) {
+                        sumBtn.disabled = false;
+                        console.log('FORCED sum button enabled');
+                    }
                 }
+                
                 if (productBtn) {
+                    console.log('Product button disabled before:', productBtn.disabled);
                     productBtn.disabled = !hasEnough;
-                    console.log('Product button disabled:', !hasEnough);
+                    console.log('Product button disabled after:', productBtn.disabled);
+                    // Force enable for testing
+                    if (numbers.length > 0) {
+                        productBtn.disabled = false;
+                        console.log('FORCED product button enabled');
+                    }
                 }
+                
                 if (selectionDiv) {
-                    const text = hasEnough 
-                        ? `${numbers.length} numbers selected: ${numbers.join(', ')}` 
-                        : `Selected: ${selection.length} items (need 2+ with numbers)`;
+                    const text = `Selection: ${selection.length} items, ${numbers.length} numbers: [${numbers.join(', ')}]`;
                     selectionDiv.textContent = text;
-                    console.log('Selection text:', text);
+                    console.log('Selection display text:', text);
                 }
+                
+                console.log('=== UI Update Complete ===');
                 
             } catch (error) {
                 console.error('Error in updateUI:', error);
-                // Enable buttons for testing if there's an error
+                console.error('Error stack:', error.stack);
+                // Force enable buttons for testing
                 const sumBtn = document.getElementById('sumBtn');
                 const productBtn = document.getElementById('productBtn');
-                if (sumBtn) sumBtn.disabled = false;
-                if (productBtn) productBtn.disabled = false;
+                if (sumBtn) {
+                    sumBtn.disabled = false;
+                    console.log('Error: forced sum button enabled');
+                }
+                if (productBtn) {
+                    productBtn.disabled = false;
+                    console.log('Error: forced product button enabled');
+                }
             }
         }
 
