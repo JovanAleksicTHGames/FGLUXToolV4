@@ -29,6 +29,8 @@
     <script>
         let isInitialized = false;
         let calculatorNotes = new Map(); // Track result notes and their source notes
+        let lastUIUpdate = 0; // Rate limiting for UI updates
+        let lastCalculatorCheck = 0; // Rate limiting for calculator checks
 
         // Icon click handler - this makes the app appear in toolbar
         miro.board.ui.on('icon:click', async () => {
@@ -81,7 +83,7 @@
                 try {
                     miro.board.ui.on('selection:update', () => {
                         console.log('Selection changed via selection:update');
-                        updateUI();
+                        throttledUpdateUI();
                     });
                 } catch (error) {
                     console.log('selection:update listener failed:', error);
@@ -92,51 +94,25 @@
                     miro.board.ui.on('items:update', (event) => {
                         console.log('Items updated, checking for parent changes');
                         handleItemsUpdate(event);
-                        updateUI(); // Also update UI
                     });
                 } catch (error) {
                     console.log('items:update listener failed:', error);
                 }
                 
-                // Alternative: Listen for items:change event
-                try {
-                    miro.board.ui.on('items:change', (event) => {
-                        console.log('Items changed, checking for parent changes');
-                        handleItemsUpdate(event);
-                    });
-                } catch (error) {
-                    console.log('items:change listener failed:', error);
-                }
+                // Force initial UI update after delays (reduced frequency)
+                setTimeout(throttledUpdateUI, 1000);
                 
-                // Another alternative: Listen for board:change
-                try {
-                    miro.board.ui.on('board:change', (event) => {
-                        console.log('Board changed, checking all calculator notes');
-                        setTimeout(() => recheckAllCalculatorNotes(), 100);
-                    });
-                } catch (error) {
-                    console.log('board:change listener failed:', error);
-                }
-                
-                // Periodic check as backup (every 2 seconds)
+                // Reduced frequency periodic check (every 10 seconds instead of 2)
                 setInterval(() => {
                     if (calculatorNotes.size > 0) {
-                        console.log('Periodic check of calculator notes');
-                        recheckAllCalculatorNotes();
+                        const now = Date.now();
+                        if (now - lastCalculatorCheck > 10000) { // Only every 10 seconds
+                            console.log('Periodic check of calculator notes');
+                            lastCalculatorCheck = now;
+                            recheckAllCalculatorNotes();
+                        }
                     }
-                }, 2000);
-                
-                // Force initial UI update after delays
-                setTimeout(updateUI, 500);
-                setTimeout(updateUI, 2000);
-                
-                // Also update UI periodically as backup
-                setInterval(updateUI, 3000);
-                
-                // Update UI when user clicks anywhere (backup)
-                document.addEventListener('click', () => {
-                    setTimeout(updateUI, 100);
-                });
+                }, 10000);
                 
                 console.log('Event listeners set up');
             }
@@ -222,13 +198,21 @@
             }
         }
 
+        // Rate-limited UI update function
+        function throttledUpdateUI() {
+            const now = Date.now();
+            if (now - lastUIUpdate > 1000) { // Only allow UI updates every 1 second
+                lastUIUpdate = now;
+                updateUI();
+            } else {
+                console.log('UI update throttled (too frequent)');
+            }
+        }
+
         async function updateUI() {
             console.log('=== Updating UI ===');
             try {
                 const selection = await miro.board.getSelection();
-                console.log('Raw selection:', selection);
-                console.log('Selection is array:', Array.isArray(selection));
-                console.log('Selection length:', selection ? selection.length : 0);
                 
                 if (!selection || !Array.isArray(selection)) {
                     console.log('Invalid selection returned');
@@ -238,31 +222,18 @@
                 const numbers = [];
                 for (let i = 0; i < selection.length; i++) {
                     const item = selection[i];
-                    console.log(`Item ${i}:`, {
-                        type: item.type,
-                        content: item.content,
-                        id: item.id
-                    });
                     
                     if (item.type === 'sticky_note' && item.content) {
                         let cleanContent = item.content.trim();
-                        console.log(`Raw content: "${cleanContent}"`);
-                        
-                        // Remove HTML tags if present
                         cleanContent = cleanContent.replace(/<[^>]*>/g, '');
-                        console.log(`Cleaned content: "${cleanContent}"`);
-                        
                         const num = parseFloat(cleanContent);
-                        console.log(`Parsed number: ${num}, isNaN: ${isNaN(num)}`);
                         if (!isNaN(num)) {
                             numbers.push(num);
                         }
                     }
                 }
                 
-                console.log('Final numbers array:', numbers);
                 const hasEnough = numbers.length >= 2;
-                console.log('Has enough numbers (>=2):', hasEnough);
                 
                 const sumBtn = document.getElementById('sumBtn');
                 const productBtn = document.getElementById('productBtn');
@@ -286,8 +257,6 @@
                     const text = `Selection: ${selection.length} items, ${numbers.length} numbers: [${numbers.join(', ')}]`;
                     selectionDiv.textContent = text;
                 }
-                
-                console.log('=== UI Update Complete ===');
                 
             } catch (error) {
                 console.error('Error in updateUI:', error);
