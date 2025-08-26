@@ -4,90 +4,134 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sticky Note Calculator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .container {
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .selection-info {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #1976d2;
+        }
+        
+        .operation-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: #2196f3;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #1976d2;
+        }
+        
+        .btn-secondary {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: #388e3c;
+        }
+        
+        .btn:disabled {
+            background: #e0e0e0;
+            color: #9e9e9e;
+            cursor: not-allowed;
+        }
+        
+        .instructions {
+            background: #fff3e0;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            color: #f57c00;
+            line-height: 1.4;
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            text-align: center;
+        }
+        
+        .status.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+    </style>
     <script src="https://miro.com/app/static/sdk/v2/miro.js"></script>
 </head>
 <body>
-    <div id="root">
-        <h2>Sticky Note Calculator</h2>
-        <div id="selectionInfo">Select 2 or more sticky notes with numbers</div>
-        <button id="sumBtn" disabled>Create Sum</button>
-        <button id="productBtn" disabled>Create Product</button>
-        <div id="statusMessage" style="display: none;"></div>
+    <div class="container">
+        <h1>Sticky Note Calculator</h1>
+        
+        <div class="selection-info" id="selectionInfo">
+            Select 2 or more sticky notes to begin
+        </div>
+        
+        <div class="operation-buttons">
+            <button class="btn btn-primary" id="sumBtn" disabled>
+                Create Sum
+            </button>
+            <button class="btn btn-secondary" id="productBtn" disabled>
+                Create Product
+            </button>
+        </div>
+        
+        <div class="instructions">
+            <strong>How to use:</strong><br>
+            1. Select multiple sticky notes on the board<br>
+            2. Click "Create Sum" or "Create Product"<br>
+            3. The result will auto-update when source notes change<br>
+            4. Move notes freely - links are preserved
+        </div>
+        
+        <div class="status" id="statusMessage" style="display: none;"></div>
     </div>
     
-    <script>
-        // This is the CRITICAL part - without this, the app won't show up!
-        miro.board.ui.on('icon:click', async () => {
-            await miro.board.ui.openPanel({
-                url: 'https://inspiring-dragon-dda2b8.netlify.app/'
-            });
-        });
-
-        // Basic app functionality
-        async function init() {
-            await miro.ready();
-            
-            // Only initialize UI if we're in the panel, not when handling icon click
-            if (window.location.search.includes('panel=1') || window.parent !== window) {
-                setupUI();
-            }
-        }
-
-        function setupUI() {
-            document.getElementById('sumBtn').addEventListener('click', async () => {
-                const selection = await miro.board.ui.getSelection();
-                const numbers = selection
-                    .filter(item => item.type === 'sticky_note')
-                    .map(item => parseFloat(item.content))
-                    .filter(n => !isNaN(n));
-                
-                if (numbers.length >= 2) {
-                    const sum = numbers.reduce((a, b) => a + b, 0);
-                    await miro.board.createStickyNote({
-                        content: sum.toString(),
-                        style: { fillColor: 'light_yellow' }
-                    });
-                    document.getElementById('statusMessage').textContent = 'Sum created!';
-                    document.getElementById('statusMessage').style.display = 'block';
-                }
-            });
-
-            document.getElementById('productBtn').addEventListener('click', async () => {
-                const selection = await miro.board.ui.getSelection();
-                const numbers = selection
-                    .filter(item => item.type === 'sticky_note')
-                    .map(item => parseFloat(item.content))
-                    .filter(n => !isNaN(n));
-                
-                if (numbers.length >= 2) {
-                    const product = numbers.reduce((a, b) => a * b, 1);
-                    await miro.board.createStickyNote({
-                        content: product.toString(),
-                        style: { fillColor: 'light_green' }
-                    });
-                    document.getElementById('statusMessage').textContent = 'Product created!';
-                    document.getElementById('statusMessage').style.display = 'block';
-                }
-            });
-
-            // Update UI based on selection
-            miro.board.ui.on('selection:update', async () => {
-                const selection = await miro.board.ui.getSelection();
-                const numbers = selection
-                    .filter(item => item.type === 'sticky_note')
-                    .map(item => parseFloat(item.content))
-                    .filter(n => !isNaN(n));
-                
-                const hasEnough = numbers.length >= 2;
-                document.getElementById('sumBtn').disabled = !hasEnough;
-                document.getElementById('productBtn').disabled = !hasEnough;
-                document.getElementById('selectionInfo').textContent = 
-                    hasEnough ? `${numbers.length} numbers selected` : 'Select 2 or more sticky notes with numbers';
-            });
-        }
-        }
-
-        init();
-    </script>
+    <script src="main.js"></script>
 </body>
 </html>
