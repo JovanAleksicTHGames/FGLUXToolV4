@@ -19,7 +19,7 @@
         // This is the CRITICAL part - without this, the app won't show up!
         miro.board.ui.on('icon:click', async () => {
             await miro.board.ui.openPanel({
-                url: window.location.href
+                url: 'https://inspiring-dragon-dda2b8.netlify.app/'
             });
         });
 
@@ -27,6 +27,13 @@
         async function init() {
             await miro.ready();
             
+            // Only initialize UI if we're in the panel, not when handling icon click
+            if (window.location.search.includes('panel=1') || window.parent !== window) {
+                setupUI();
+            }
+        }
+
+        function setupUI() {
             document.getElementById('sumBtn').addEventListener('click', async () => {
                 const selection = await miro.board.ui.getSelection();
                 const numbers = selection
@@ -77,6 +84,7 @@
                 document.getElementById('selectionInfo').textContent = 
                     hasEnough ? `${numbers.length} numbers selected` : 'Select 2 or more sticky notes with numbers';
             });
+        }
         }
 
         init();
