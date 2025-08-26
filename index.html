@@ -94,7 +94,7 @@
             console.log('Calculate:', operation);
             
             try {
-                const selection = await miro.board.ui.getSelection();
+                const selection = await miro.board.getSelection();
                 console.log('Selection:', selection);
                 
                 const numbers = selection
@@ -139,7 +139,7 @@
         async function updateUI() {
             console.log('Updating UI...');
             try {
-                const selection = await miro.board.ui.getSelection();
+                const selection = await miro.board.getSelection();
                 console.log('Current selection:', selection);
                 console.log('Selection length:', selection ? selection.length : 0);
                 
