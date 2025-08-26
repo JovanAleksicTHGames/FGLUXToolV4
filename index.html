@@ -120,7 +120,10 @@
                 const numbers = selection
                     .filter(item => item.type === 'sticky_note')
                     .map(item => {
-                        const num = parseFloat(item.content?.trim());
+                        if (!item.content) return null;
+                        // Remove HTML tags and parse number
+                        const cleanContent = item.content.replace(/<[^>]*>/g, '').trim();
+                        const num = parseFloat(cleanContent);
                         return isNaN(num) ? null : num;
                     })
                     .filter(n => n !== null);
@@ -179,8 +182,13 @@
                     });
                     
                     if (item.type === 'sticky_note' && item.content) {
-                        const cleanContent = item.content.trim();
-                        console.log(`Parsing content "${cleanContent}"`);
+                        let cleanContent = item.content.trim();
+                        console.log(`Raw content: "${cleanContent}"`);
+                        
+                        // Remove HTML tags if present
+                        cleanContent = cleanContent.replace(/<[^>]*>/g, '');
+                        console.log(`Cleaned content: "${cleanContent}"`);
+                        
                         const num = parseFloat(cleanContent);
                         console.log(`Parsed number: ${num}, isNaN: ${isNaN(num)}`);
                         if (!isNaN(num)) {
