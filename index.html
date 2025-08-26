@@ -45,9 +45,27 @@
         }
         .relationship-item.sum { border-left-color: #ffc107; }
         .relationship-item.product { border-left-color: #28a745; }
-        .relationship-header { font-weight: bold; margin-bottom: 4px; }
+        .relationship-header { font-weight: bold; margin-bottom: 4px; cursor: pointer; }
+        .relationship-header:hover { color: #007bff; text-decoration: underline; }
         .relationship-sources { font-size: 10px; color: #666; }
         .relationship-result { font-size: 10px; color: #333; margin-top: 2px; }
+        .relationship-actions { 
+            margin-top: 6px; 
+            display: flex; 
+            gap: 5px; 
+        }
+        .action-btn { 
+            font-size: 9px; 
+            padding: 2px 6px; 
+            border: none; 
+            border-radius: 2px; 
+            cursor: pointer; 
+            background: #dc3545; 
+            color: white; 
+        }
+        .action-btn:hover { background: #c82333; }
+        .goto-btn { background: #007bff; }
+        .goto-btn:hover { background: #0056b3; }
     </style>
 </head>
 <body>
@@ -396,7 +414,7 @@
                     
                     html += `
                         <div class="relationship-item ${calcData.operation}">
-                            <div class="relationship-header">
+                            <div class="relationship-header" onclick="goToResultNote('${resultId}')" title="Double-click to go to result note">
                                 ${calcData.operation.toUpperCase()}: ${resultContent}
                             </div>
                             <div class="relationship-sources">
@@ -404,6 +422,14 @@
                             </div>
                             <div class="relationship-result">
                                 Result ID: ${resultId.slice(-8)}...
+                            </div>
+                            <div class="relationship-actions">
+                                <button class="action-btn goto-btn" onclick="goToResultNote('${resultId}')" title="Go to result note">
+                                    Go To
+                                </button>
+                                <button class="action-btn" onclick="deleteRelationship('${resultId}')" title="Delete relationship and all related notes">
+                                    Delete All
+                                </button>
                             </div>
                         </div>
                     `;
@@ -420,6 +446,82 @@
             const countElement = document.getElementById('relationshipCount');
             if (countElement) {
                 countElement.textContent = calculatorNotes.size;
+            }
+        }
+
+        // Navigate to result note (global function for onclick)
+        window.goToResultNote = async function(resultId) {
+            try {
+                console.log('Navigating to result note:', resultId);
+                const resultNote = await miro.board.getById(resultId);
+                if (resultNote) {
+                    await miro.board.viewport.zoomTo(resultNote);
+                    // Also select the note to highlight it
+                    await miro.board.select({ id: resultId });
+                    showStatus('Navigated to result note', 'success');
+                } else {
+                    showStatus('Result note not found', 'error');
+                }
+            } catch (error) {
+                console.error('Error navigating to result note:', error);
+                showStatus('Error: Result note may have been deleted', 'error');
+            }
+        }
+
+        // Delete relationship and all related notes
+        window.deleteRelationship = async function(resultId) {
+            try {
+                const calcData = calculatorNotes.get(resultId);
+                if (!calcData) {
+                    showStatus('Relationship not found', 'error');
+                    return;
+                }
+
+                const confirmMessage = `Delete this relationship and ALL related notes?\n\nThis will delete:\n- The result note (${calcData.operation})\n- All ${calcData.sourceIds.length} source notes\n\nThis action cannot be undone.`;
+                
+                if (!confirm(confirmMessage)) {
+                    return;
+                }
+
+                console.log('Deleting relationship and all notes for:', resultId);
+                let deletedCount = 0;
+                let errors = 0;
+
+                // Delete all source notes
+                for (const sourceId of calcData.sourceIds) {
+                    try {
+                        await miro.board.deleteItem(sourceId);
+                        deletedCount++;
+                        console.log('Deleted source note:', sourceId);
+                    } catch (error) {
+                        console.log('Could not delete source note (may already be deleted):', sourceId);
+                        errors++;
+                    }
+                }
+
+                // Delete result note
+                try {
+                    await miro.board.deleteItem(resultId);
+                    deletedCount++;
+                    console.log('Deleted result note:', resultId);
+                } catch (error) {
+                    console.log('Could not delete result note (may already be deleted):', resultId);
+                    errors++;
+                }
+
+                // Remove from tracking
+                calculatorNotes.delete(resultId);
+                await saveCalculatorData();
+                updateRelationshipsCount();
+                
+                // Refresh the relationships list
+                updateRelationshipsList();
+
+                showStatus(`Deleted ${deletedCount} notes (${errors} errors)`, deletedCount > 0 ? 'success' : 'error');
+                
+            } catch (error) {
+                console.error('Error deleting relationship:', error);
+                showStatus('Error deleting relationship: ' + error.message, 'error');
             }
         }
         async function recheckAllCalculatorNotes() {
