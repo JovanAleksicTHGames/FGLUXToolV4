@@ -8,6 +8,11 @@ miro.board.ui.on('icon:click', async () => {
     });
 });
 
+// Wait for DOM to be ready before accessing elements
+document.addEventListener('DOMContentLoaded', function() {
+    init();
+});
+
 // Main app functionality
 async function init() {
     await miro.ready();
@@ -19,9 +24,16 @@ async function init() {
 }
 
 function setupUI() {
-    // Set up button event listeners
-    document.getElementById('sumBtn').addEventListener('click', createSum);
-    document.getElementById('productBtn').addEventListener('click', createProduct);
+    // Check if elements exist before setting up event listeners
+    const sumBtn = document.getElementById('sumBtn');
+    const productBtn = document.getElementById('productBtn');
+    
+    if (sumBtn) {
+        sumBtn.addEventListener('click', createSum);
+    }
+    if (productBtn) {
+        productBtn.addEventListener('click', createProduct);
+    }
     
     // Listen for selection changes
     miro.board.ui.on('selection:update', updateUI);
@@ -97,6 +109,3 @@ function showStatus(message) {
         }, 3000);
     }
 }
-
-// Initialize the app
-init();
