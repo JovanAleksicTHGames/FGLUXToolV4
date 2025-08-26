@@ -372,6 +372,9 @@
             const content = document.getElementById('relationshipsContent');
             if (!content) return;
             
+            // First clean up orphaned relationships
+            await cleanupOrphanedRelationships();
+            
             if (calculatorNotes.size === 0) {
                 content.innerHTML = 'No calculator relationships found';
                 return;
@@ -414,7 +417,7 @@
                     
                     html += `
                         <div class="relationship-item ${calcData.operation}">
-                            <div class="relationship-header" onclick="goToResultNote('${resultId}')" title="Double-click to go to result note">
+                            <div class="relationship-header" onclick="goToResultNote('${resultId}')" title="Click to go to result note">
                                 ${calcData.operation.toUpperCase()}: ${resultContent}
                             </div>
                             <div class="relationship-sources">
@@ -485,39 +488,63 @@
 
                 console.log('Deleting relationship and all notes for:', resultId);
                 let deletedCount = 0;
-                let errors = 0;
+                let errors = [];
 
-                // Delete all source notes
+                // Delete all source notes first
                 for (const sourceId of calcData.sourceIds) {
                     try {
-                        await miro.board.deleteItem(sourceId);
-                        deletedCount++;
-                        console.log('Deleted source note:', sourceId);
+                        console.log('Attempting to delete source note:', sourceId);
+                        
+                        // First verify the note exists
+                        const sourceNote = await miro.board.getById(sourceId);
+                        if (sourceNote) {
+                            // Delete using the correct method with array of IDs
+                            await miro.board.deleteItem([sourceId]);
+                            deletedCount++;
+                            console.log('✅ Deleted source note:', sourceId);
+                        } else {
+                            console.log('Source note already gone:', sourceId);
+                        }
                     } catch (error) {
-                        console.log('Could not delete source note (may already be deleted):', sourceId);
-                        errors++;
+                        console.log('❌ Could not delete source note:', sourceId, error.message);
+                        errors.push(`Source ${sourceId.slice(-8)}: ${error.message}`);
                     }
                 }
 
                 // Delete result note
                 try {
-                    await miro.board.deleteItem(resultId);
-                    deletedCount++;
-                    console.log('Deleted result note:', resultId);
+                    console.log('Attempting to delete result note:', resultId);
+                    
+                    // First verify the note exists
+                    const resultNote = await miro.board.getById(resultId);
+                    if (resultNote) {
+                        // Delete using the correct method
+                        await miro.board.deleteItem([resultId]);
+                        deletedCount++;
+                        console.log('✅ Deleted result note:', resultId);
+                    } else {
+                        console.log('Result note already gone:', resultId);
+                    }
                 } catch (error) {
-                    console.log('Could not delete result note (may already be deleted):', resultId);
-                    errors++;
+                    console.log('❌ Could not delete result note:', resultId, error.message);
+                    errors.push(`Result ${resultId.slice(-8)}: ${error.message}`);
                 }
 
-                // Remove from tracking
+                // Remove from tracking regardless of deletion success
                 calculatorNotes.delete(resultId);
                 await saveCalculatorData();
                 updateRelationshipsCount();
                 
                 // Refresh the relationships list
-                updateRelationshipsList();
+                await updateRelationshipsList();
 
-                showStatus(`Deleted ${deletedCount} notes (${errors} errors)`, deletedCount > 0 ? 'success' : 'error');
+                // Show results
+                if (errors.length > 0) {
+                    console.error('Deletion errors:', errors);
+                    showStatus(`Deleted ${deletedCount} notes, ${errors.length} errors`, 'error');
+                } else {
+                    showStatus(`Successfully deleted ${deletedCount} notes`, 'success');
+                }
                 
             } catch (error) {
                 console.error('Error deleting relationship:', error);
