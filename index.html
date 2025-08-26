@@ -326,6 +326,7 @@
         async function recalculateResult(resultId, calcData) {
             try {
                 console.log('Recalculating result note:', resultId);
+                console.log('Calc data:', calcData);
                 
                 // Get current values of all source notes
                 const sourceValues = [];
@@ -333,17 +334,22 @@
                 
                 for (const sourceId of calcData.sourceIds) {
                     try {
-                        const sourceItem = await miro.board.get({ id: sourceId });
+                        console.log('Checking source ID:', sourceId);
+                        const sourceItem = await miro.board.getById(sourceId);
+                        console.log('Source item:', sourceItem);
+                        
                         if (sourceItem && sourceItem.type === 'sticky_note' && sourceItem.content) {
                             const cleanContent = sourceItem.content.replace(/<[^>]*>/g, '').trim();
+                            console.log('Clean content:', cleanContent);
                             const num = parseFloat(cleanContent);
+                            console.log('Parsed number:', num);
                             if (!isNaN(num)) {
                                 sourceValues.push(num);
                                 validSourceIds.push(sourceId);
                             }
                         }
                     } catch (error) {
-                        console.log('Source note no longer exists:', sourceId);
+                        console.log('Source note not found or error:', sourceId, error.message);
                     }
                 }
                 
@@ -352,11 +358,14 @@
                 if (sourceValues.length < 2) {
                     console.log('Not enough valid source values, removing calculator note');
                     try {
-                        await miro.board.remove(resultId);
+                        await miro.board.deleteItem(resultId);
                         calculatorNotes.delete(resultId);
                         await saveCalculatorData();
                     } catch (error) {
-                        console.log('Error removing calculator note:', error);
+                        console.log('Error removing calculator note (might already be gone):', error.message);
+                        // Clean up from our tracking anyway
+                        calculatorNotes.delete(resultId);
+                        await saveCalculatorData();
                     }
                     return;
                 }
@@ -373,14 +382,15 @@
                 
                 // Update the result sticky note
                 try {
-                    const resultItem = await miro.board.get({ id: resultId });
+                    const resultItem = await miro.board.getById(resultId);
+                    console.log('Result item before update:', resultItem);
                     if (resultItem) {
                         resultItem.content = newResult.toString();
                         await resultItem.sync();
-                        console.log('Updated result note with new value:', newResult);
+                        console.log('✅ Updated result note with new value:', newResult);
                     }
                 } catch (error) {
-                    console.log('Result note no longer exists:', resultId);
+                    console.log('Result note no longer exists:', resultId, error.message);
                     calculatorNotes.delete(resultId);
                     await saveCalculatorData();
                 }
