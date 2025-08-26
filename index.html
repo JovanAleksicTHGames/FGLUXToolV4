@@ -1,14 +1,109 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <title>Sticky Note Calculator</title>
     <script src="https://miro.com/app/static/sdk/v2/miro.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { padding: 10px; margin: 5px; }
+        button:disabled { opacity: 0.5; }
+        #status { margin-top: 10px; padding: 10px; display: none; }
+        .success { background: lightgreen; }
+        .error { background: lightcoral; }
+    </style>
 </head>
 <body>
-    <h1>Test App</h1>
+    <h2>Sticky Note Calculator</h2>
+    <div id="selection">Select 2+ sticky notes with numbers</div>
+    <button id="sumBtn" disabled>Create Sum</button>
+    <button id="productBtn" disabled>Create Product</button>
+    <div id="status"></div>
+
     <script>
+        // CRITICAL: Icon click handler must be registered immediately
         miro.board.ui.on('icon:click', async () => {
-            alert('App clicked!');
+            await miro.board.ui.openPanel({
+                url: 'https://fglux-tool-v4.vercel.app/'
+            });
         });
+
+        // Wait for everything to load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await miro.ready();
+            
+            // Only setup UI if we're in the panel
+            if (window.parent !== window) {
+                setupCalculator();
+            }
+        });
+
+        function setupCalculator() {
+            const sumBtn = document.getElementById('sumBtn');
+            const productBtn = document.getElementById('productBtn');
+            
+            sumBtn.onclick = () => calculate('sum');
+            productBtn.onclick = () => calculate('product');
+            
+            // Update UI when selection changes
+            miro.board.ui.on('selection:update', updateUI);
+            updateUI(); // Initial update
+        }
+
+        async function calculate(type) {
+            try {
+                const selection = await miro.board.ui.getSelection();
+                const numbers = selection
+                    .filter(item => item.type === 'sticky_note')
+                    .map(item => parseFloat(item.content))
+                    .filter(n => !isNaN(n));
+
+                if (numbers.length < 2) {
+                    showStatus('Select at least 2 sticky notes with numbers', 'error');
+                    return;
+                }
+
+                const result = type === 'sum' 
+                    ? numbers.reduce((a, b) => a + b, 0)
+                    : numbers.reduce((a, b) => a * b, 1);
+
+                await miro.board.createStickyNote({
+                    content: result.toString(),
+                    style: { fillColor: type === 'sum' ? 'light_yellow' : 'light_green' }
+                });
+
+                showStatus(`${type} created: ${result}`, 'success');
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function updateUI() {
+            try {
+                const selection = await miro.board.ui.getSelection();
+                const numbers = selection
+                    .filter(item => item.type === 'sticky_note')
+                    .map(item => parseFloat(item.content))
+                    .filter(n => !isNaN(n));
+
+                const hasEnough = numbers.length >= 2;
+                document.getElementById('sumBtn').disabled = !hasEnough;
+                document.getElementById('productBtn').disabled = !hasEnough;
+                document.getElementById('selection').textContent = 
+                    hasEnough ? `${numbers.length} numbers selected` : 'Select 2+ sticky notes with numbers';
+            } catch (error) {
+                console.error('Update UI error:', error);
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = type;
+            status.style.display = 'block';
+            setTimeout(() => status.style.display = 'none', 3000);
+        }
     </script>
 </body>
 </html>
+
