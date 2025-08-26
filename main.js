@@ -1,93 +1,102 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sticky Note Calculator</title>
-    <script src="https://miro.com/app/static/sdk/v2/miro.js"></script>
-</head>
-<body>
-    <div id="root">
-        <h2>Sticky Note Calculator</h2>
-        <div id="selectionInfo">Select 2 or more sticky notes with numbers</div>
-        <button id="sumBtn" disabled>Create Sum</button>
-        <button id="productBtn" disabled>Create Product</button>
-        <div id="statusMessage" style="display: none;"></div>
-    </div>
+// Miro Sticky Note Calculator - Main JavaScript
+// This handles the icon click event and panel functionality
+
+// Icon click handler - required for app to show up in toolbar
+miro.board.ui.on('icon:click', async () => {
+    await miro.board.ui.openPanel({
+        url: 'https://fglux-tool-v4.vercel.app/'
+    });
+});
+
+// Main app functionality
+async function init() {
+    await miro.ready();
     
-    <script>
-        // This is the CRITICAL part - without this, the app won't show up!
-        miro.board.ui.on('icon:click', async () => {
-            await miro.board.ui.openPanel({
-                url: 'https://inspiring-dragon-dda2b8.netlify.app/'
-            });
+    // Only initialize UI if we're in the panel context
+    if (window.location.search.includes('panel=1') || window.parent !== window) {
+        setupUI();
+    }
+}
+
+function setupUI() {
+    // Set up button event listeners
+    document.getElementById('sumBtn').addEventListener('click', createSum);
+    document.getElementById('productBtn').addEventListener('click', createProduct);
+    
+    // Listen for selection changes
+    miro.board.ui.on('selection:update', updateUI);
+    
+    // Initial UI update
+    updateUI();
+}
+
+async function createSum() {
+    const selection = await miro.board.ui.getSelection();
+    const numbers = getNumericValues(selection);
+    
+    if (numbers.length >= 2) {
+        const sum = numbers.reduce((a, b) => a + b, 0);
+        await miro.board.createStickyNote({
+            content: sum.toString(),
+            style: { fillColor: 'light_yellow' }
         });
+        showStatus('Sum created!');
+    } else {
+        showStatus('Please select at least 2 sticky notes with numbers');
+    }
+}
 
-        // Basic app functionality
-        async function init() {
-            await miro.ready();
-            
-            // Only initialize UI if we're in the panel, not when handling icon click
-            if (window.location.search.includes('panel=1') || window.parent !== window) {
-                setupUI();
-            }
-        }
+async function createProduct() {
+    const selection = await miro.board.ui.getSelection();
+    const numbers = getNumericValues(selection);
+    
+    if (numbers.length >= 2) {
+        const product = numbers.reduce((a, b) => a * b, 1);
+        await miro.board.createStickyNote({
+            content: product.toString(),
+            style: { fillColor: 'light_green' }
+        });
+        showStatus('Product created!');
+    } else {
+        showStatus('Please select at least 2 sticky notes with numbers');
+    }
+}
 
-        function setupUI() {
-            document.getElementById('sumBtn').addEventListener('click', async () => {
-                const selection = await miro.board.ui.getSelection();
-                const numbers = selection
-                    .filter(item => item.type === 'sticky_note')
-                    .map(item => parseFloat(item.content))
-                    .filter(n => !isNaN(n));
-                
-                if (numbers.length >= 2) {
-                    const sum = numbers.reduce((a, b) => a + b, 0);
-                    await miro.board.createStickyNote({
-                        content: sum.toString(),
-                        style: { fillColor: 'light_yellow' }
-                    });
-                    document.getElementById('statusMessage').textContent = 'Sum created!';
-                    document.getElementById('statusMessage').style.display = 'block';
-                }
-            });
+function getNumericValues(selection) {
+    return selection
+        .filter(item => item.type === 'sticky_note')
+        .map(item => parseFloat(item.content))
+        .filter(n => !isNaN(n));
+}
 
-            document.getElementById('productBtn').addEventListener('click', async () => {
-                const selection = await miro.board.ui.getSelection();
-                const numbers = selection
-                    .filter(item => item.type === 'sticky_note')
-                    .map(item => parseFloat(item.content))
-                    .filter(n => !isNaN(n));
-                
-                if (numbers.length >= 2) {
-                    const product = numbers.reduce((a, b) => a * b, 1);
-                    await miro.board.createStickyNote({
-                        content: product.toString(),
-                        style: { fillColor: 'light_green' }
-                    });
-                    document.getElementById('statusMessage').textContent = 'Product created!';
-                    document.getElementById('statusMessage').style.display = 'block';
-                }
-            });
+async function updateUI() {
+    const selection = await miro.board.ui.getSelection();
+    const numbers = getNumericValues(selection);
+    const hasEnough = numbers.length >= 2;
+    
+    const sumBtn = document.getElementById('sumBtn');
+    const productBtn = document.getElementById('productBtn');
+    const selectionInfo = document.getElementById('selectionInfo');
+    
+    if (sumBtn) sumBtn.disabled = !hasEnough;
+    if (productBtn) productBtn.disabled = !hasEnough;
+    if (selectionInfo) {
+        selectionInfo.textContent = hasEnough 
+            ? `${numbers.length} numbers selected` 
+            : 'Select 2 or more sticky notes with numbers';
+    }
+}
 
-            // Update UI based on selection
-            miro.board.ui.on('selection:update', async () => {
-                const selection = await miro.board.ui.getSelection();
-                const numbers = selection
-                    .filter(item => item.type === 'sticky_note')
-                    .map(item => parseFloat(item.content))
-                    .filter(n => !isNaN(n));
-                
-                const hasEnough = numbers.length >= 2;
-                document.getElementById('sumBtn').disabled = !hasEnough;
-                document.getElementById('productBtn').disabled = !hasEnough;
-                document.getElementById('selectionInfo').textContent = 
-                    hasEnough ? `${numbers.length} numbers selected` : 'Select 2 or more sticky notes with numbers';
-            });
-        }
-        }
+function showStatus(message) {
+    const statusElement = document.getElementById('statusMessage');
+    if (statusElement) {
+        statusElement.textContent = message;
+        statusElement.style.display = 'block';
+        setTimeout(() => {
+            statusElement.style.display = 'none';
+        }, 3000);
+    }
+}
 
-        init();
-    </script>
-</body>
-</html>
+// Initialize the app
+init();
