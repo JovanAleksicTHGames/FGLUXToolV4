@@ -28,128 +28,13 @@
 
     <script>
         let isInitialized = false;
-        let calculatorNotes = new Map(); // Track result notes and their source notes
 
         // Icon click handler - this makes the app appear in toolbar
         miro.board.ui.on('icon:click', async () => {
             console.log('Icon clicked');
             await miro.board.ui.openPanel({
                 url: 'https://fglux-tool-v4.vercel.app/'
-            }
-
-        // Handle when items are updated - check if any are parent notes
-        async function handleItemsUpdate(event) {
-            console.log('Items update event:', event);
-            
-            for (const updatedItem of event.items) {
-                console.log('Updated item:', updatedItem.id, updatedItem.type);
-                
-                if (updatedItem.type === 'sticky_note') {
-                    // Check if this updated item is a source for any calculator notes
-                    for (const [resultId, calcData] of calculatorNotes.entries()) {
-                        if (calcData.sourceIds.includes(updatedItem.id)) {
-                            console.log(`Found calculator note ${resultId} that depends on updated item ${updatedItem.id}`);
-                            await recalculateResult(resultId, calcData);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Recalculate a result sticky note based on current source values
-        async function recalculateResult(resultId, calcData) {
-            try {
-                console.log('Recalculating result note:', resultId);
-                
-                // Get current values of all source notes
-                const sourceValues = [];
-                const validSourceIds = [];
-                
-                for (const sourceId of calcData.sourceIds) {
-                    try {
-                        const sourceItem = await miro.board.get({ id: sourceId });
-                        if (sourceItem && sourceItem.type === 'sticky_note' && sourceItem.content) {
-                            const cleanContent = sourceItem.content.replace(/<[^>]*>/g, '').trim();
-                            const num = parseFloat(cleanContent);
-                            if (!isNaN(num)) {
-                                sourceValues.push(num);
-                                validSourceIds.push(sourceId);
-                            }
-                        }
-                    } catch (error) {
-                        console.log('Source note no longer exists:', sourceId);
-                    }
-                }
-                
-                console.log('Current source values:', sourceValues);
-                
-                if (sourceValues.length < 2) {
-                    console.log('Not enough valid source values, removing calculator note');
-                    // Remove the calculator note if sources are no longer valid
-                    try {
-                        await miro.board.remove(resultId);
-                        calculatorNotes.delete(resultId);
-                        await saveCalculatorData();
-                    } catch (error) {
-                        console.log('Error removing calculator note:', error);
-                    }
-                    return;
-                }
-                
-                // Calculate new result
-                let newResult;
-                if (calcData.operation === 'sum') {
-                    newResult = sourceValues.reduce((a, b) => a + b, 0);
-                } else {
-                    newResult = sourceValues.reduce((a, b) => a * b, 1);
-                }
-                
-                console.log('New calculated result:', newResult);
-                
-                // Update the result sticky note
-                try {
-                    const resultItem = await miro.board.get({ id: resultId });
-                    if (resultItem) {
-                        resultItem.content = newResult.toString();
-                        await resultItem.sync();
-                        console.log('Updated result note with new value:', newResult);
-                    }
-                } catch (error) {
-                    console.log('Result note no longer exists:', resultId);
-                    calculatorNotes.delete(resultId);
-                    await saveCalculatorData();
-                }
-                
-            } catch (error) {
-                console.error('Error in recalculateResult:', error);
-            }
-        }
-
-        // Save calculator data to board metadata
-        async function saveCalculatorData() {
-            try {
-                const data = Object.fromEntries(calculatorNotes);
-                await miro.board.setAppData('calculatorNotes', data);
-                console.log('Saved calculator data to board metadata');
-            } catch (error) {
-                console.error('Error saving calculator data:', error);
-            }
-        }
-
-        // Load calculator data from board metadata
-        async function loadCalculatorData() {
-            try {
-                const data = await miro.board.getAppData('calculatorNotes');
-                if (data) {
-                    calculatorNotes = new Map(Object.entries(data));
-                    console.log('Loaded calculator data:', calculatorNotes);
-                } else {
-                    console.log('No existing calculator data found');
-                }
-            } catch (error) {
-                console.error('Error loading calculator data:', error);
-            }
-        });
+            });
         });
 
         // Initialize when ready
@@ -169,10 +54,6 @@
                 
                 // Set up the UI immediately
                 setupUI();
-                
-                // Load any existing calculator data
-                await loadCalculatorData();
-                
                 isInitialized = true;
                 console.log('App initialized successfully');
                 
@@ -203,11 +84,11 @@
                     console.log('selection:update listener failed:', error);
                 }
                 
-                // Also listen for items being updated (for dynamic recalculation)
+                // Alternative: Listen for items:update in case selection events don't work
                 try {
-                    miro.board.ui.on('items:update', (event) => {
-                        console.log('Items updated, checking for parent changes');
-                        handleItemsUpdate(event);
+                    miro.board.ui.on('items:update', () => {
+                        console.log('Items updated, checking selection');
+                        updateUI();
                     });
                 } catch (error) {
                     console.log('items:update listener failed:', error);
@@ -280,23 +161,6 @@
                 });
 
                 console.log('Created sticky note:', newStickyNote);
-
-                // Store the relationship between result note and source notes
-                const sourceIds = validItems.map(item => item.id);
-                calculatorNotes.set(newStickyNote.id, {
-                    operation: operation,
-                    sourceIds: sourceIds,
-                    created: Date.now()
-                });
-
-                console.log('Stored calculator relationship:', {
-                    resultId: newStickyNote.id,
-                    operation: operation,
-                    sourceIds: sourceIds
-                });
-
-                // Save to board metadata for persistence
-                await saveCalculatorData();
 
                 // Zoom to the new sticky note to make it visible
                 await miro.board.viewport.zoomTo(newStickyNote);
