@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Sticky Note Calculator</title>
-    <script src="https://miro.com/app/static/sdk/v2/miro.js"></script>
+    <script src="https://miro.com/app/static/sdk/v2/miro.js?v=2"></script>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; margin: 0; }
         .container { max-width: 250px; }
@@ -42,11 +42,26 @@
             if (isInitialized) return;
             
             console.log('Initializing app');
-            await miro.ready();
             
-            // Set up the UI
-            setupUI();
-            isInitialized = true;
+            // Different approach - don't use miro.ready()
+            try {
+                // Wait for miro to be available
+                if (typeof miro === 'undefined') {
+                    console.log('Miro not loaded yet, waiting...');
+                    setTimeout(init, 100);
+                    return;
+                }
+                
+                // Set up the UI immediately
+                setupUI();
+                isInitialized = true;
+                console.log('App initialized successfully');
+                
+            } catch (error) {
+                console.error('Init error:', error);
+                // Try again
+                setTimeout(init, 500);
+            }
         }
 
         function setupUI() {
