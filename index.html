@@ -74,19 +74,39 @@
                 sumBtn.addEventListener('click', () => calculate('sum'));
                 productBtn.addEventListener('click', () => calculate('product'));
                 
-                // Listen for selection changes
-                miro.board.ui.on('selection:update', () => {
-                    console.log('Selection changed');
-                    updateUI();
-                });
+                // Listen for selection changes - try multiple approaches
+                try {
+                    miro.board.ui.on('selection:update', () => {
+                        console.log('Selection changed via selection:update');
+                        updateUI();
+                    });
+                } catch (error) {
+                    console.log('selection:update listener failed:', error);
+                }
+                
+                // Alternative: Listen for items:update in case selection events don't work
+                try {
+                    miro.board.ui.on('items:update', () => {
+                        console.log('Items updated, checking selection');
+                        updateUI();
+                    });
+                } catch (error) {
+                    console.log('items:update listener failed:', error);
+                }
                 
                 // Force initial UI update after a short delay
                 setTimeout(updateUI, 500);
+                setTimeout(updateUI, 2000); // Try again after 2 seconds
                 
-                // Also update UI when user clicks anywhere (backup)
+                // Also update UI periodically as backup
+                setInterval(updateUI, 3000);
+                
+                // Update UI when user clicks anywhere (backup)
                 document.addEventListener('click', () => {
                     setTimeout(updateUI, 100);
                 });
+                
+                console.log('Event listeners set up');
             }
         }
 
