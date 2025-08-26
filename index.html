@@ -15,6 +15,39 @@
         #status { margin-top: 10px; padding: 8px; border-radius: 4px; display: none; }
         .success { background: #d4edda; color: #155724; }
         .error { background: #f8d7da; color: #721c24; }
+        
+        .relationships-section { margin-top: 20px; }
+        .toggle-btn { 
+            width: 100%; 
+            padding: 8px; 
+            background: #f8f9fa; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 12px;
+            text-align: left;
+        }
+        .toggle-btn:hover { background: #e9ecef; }
+        .relationships-list { 
+            border: 1px solid #ddd; 
+            border-top: none; 
+            border-radius: 0 0 4px 4px; 
+            max-height: 200px; 
+            overflow-y: auto;
+        }
+        #relationshipsContent { padding: 10px; font-size: 11px; }
+        .relationship-item { 
+            padding: 8px; 
+            margin: 4px 0; 
+            background: #f8f9fa; 
+            border-radius: 3px; 
+            border-left: 3px solid #007bff;
+        }
+        .relationship-item.sum { border-left-color: #ffc107; }
+        .relationship-item.product { border-left-color: #28a745; }
+        .relationship-header { font-weight: bold; margin-bottom: 4px; }
+        .relationship-sources { font-size: 10px; color: #666; }
+        .relationship-result { font-size: 10px; color: #333; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -24,6 +57,16 @@
         <button id="sumBtn" class="sum-btn" disabled>Create Sum</button>
         <button id="productBtn" class="product-btn" disabled>Create Product</button>
         <div id="status"></div>
+        
+        <!-- Expandable relationships overview -->
+        <div class="relationships-section">
+            <button id="toggleRelationships" class="toggle-btn">
+                ▼ Show Relationships (<span id="relationshipCount">0</span>)
+            </button>
+            <div id="relationshipsList" class="relationships-list" style="display: none;">
+                <div id="relationshipsContent">No calculator relationships found</div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -60,6 +103,9 @@
                 // Load any existing calculator data
                 await loadCalculatorData();
                 
+                // Update relationships count
+                updateRelationshipsCount();
+                
                 isInitialized = true;
                 console.log('App initialized successfully');
                 
@@ -78,6 +124,24 @@
             if (sumBtn && productBtn) {
                 sumBtn.addEventListener('click', () => calculate('sum'));
                 productBtn.addEventListener('click', () => calculate('product'));
+                
+                // Set up relationships toggle
+                const toggleBtn = document.getElementById('toggleRelationships');
+                const relationshipsList = document.getElementById('relationshipsList');
+                
+                if (toggleBtn && relationshipsList) {
+                    toggleBtn.addEventListener('click', () => {
+                        const isVisible = relationshipsList.style.display !== 'none';
+                        relationshipsList.style.display = isVisible ? 'none' : 'block';
+                        toggleBtn.innerHTML = isVisible 
+                            ? `▼ Show Relationships (<span id="relationshipCount">${calculatorNotes.size}</span>)`
+                            : `▲ Hide Relationships (<span id="relationshipCount">${calculatorNotes.size}</span>)`;
+                        
+                        if (!isVisible) {
+                            updateRelationshipsList();
+                        }
+                    });
+                }
                 
                 // Listen for selection changes - throttled
                 try {
@@ -187,6 +251,9 @@
 
                 // Save to board metadata for persistence
                 await saveCalculatorData();
+                
+                // Update relationships display
+                updateRelationshipsCount();
 
                 // Zoom to the new sticky note to make it visible
                 await miro.board.viewport.zoomTo(newStickyNote);
@@ -282,7 +349,79 @@
             }
         }
 
-        // Check all calculator notes for updates (backup method)
+        // Update relationships list display
+        async function updateRelationshipsList() {
+            const content = document.getElementById('relationshipsContent');
+            if (!content) return;
+            
+            if (calculatorNotes.size === 0) {
+                content.innerHTML = 'No calculator relationships found';
+                return;
+            }
+            
+            let html = '';
+            
+            for (const [resultId, calcData] of calculatorNotes.entries()) {
+                try {
+                    // Get result note info
+                    let resultNote = null;
+                    let resultContent = 'Unknown';
+                    try {
+                        resultNote = await miro.board.getById(resultId);
+                        if (resultNote && resultNote.content) {
+                            resultContent = resultNote.content.replace(/<[^>]*>/g, '').trim();
+                        }
+                    } catch (error) {
+                        resultContent = 'Deleted';
+                    }
+                    
+                    // Get source notes info
+                    const sourceInfos = [];
+                    for (const sourceId of calcData.sourceIds) {
+                        try {
+                            const sourceNote = await miro.board.getById(sourceId);
+                            if (sourceNote && sourceNote.content) {
+                                const content = sourceNote.content.replace(/<[^>]*>/g, '').trim();
+                                sourceInfos.push(content);
+                            } else {
+                                sourceInfos.push('?');
+                            }
+                        } catch (error) {
+                            sourceInfos.push('Deleted');
+                        }
+                    }
+                    
+                    const operationSymbol = calcData.operation === 'sum' ? '+' : '×';
+                    const sourceText = sourceInfos.join(` ${operationSymbol} `);
+                    
+                    html += `
+                        <div class="relationship-item ${calcData.operation}">
+                            <div class="relationship-header">
+                                ${calcData.operation.toUpperCase()}: ${resultContent}
+                            </div>
+                            <div class="relationship-sources">
+                                Sources: ${sourceText}
+                            </div>
+                            <div class="relationship-result">
+                                Result ID: ${resultId.slice(-8)}...
+                            </div>
+                        </div>
+                    `;
+                } catch (error) {
+                    console.error('Error displaying relationship:', error);
+                }
+            }
+            
+            content.innerHTML = html;
+        }
+        
+        // Update relationships count
+        function updateRelationshipsCount() {
+            const countElement = document.getElementById('relationshipCount');
+            if (countElement) {
+                countElement.textContent = calculatorNotes.size;
+            }
+        }
         async function recheckAllCalculatorNotes() {
             for (const [resultId, calcData] of calculatorNotes.entries()) {
                 await recalculateResult(resultId, calcData);
@@ -345,6 +484,7 @@
                         await miro.board.deleteItem(resultId);
                         calculatorNotes.delete(resultId);
                         await saveCalculatorData();
+                        updateRelationshipsCount();
                     } catch (error) {
                         console.log('Error removing calculator note (might already be gone):', error.message);
                         // Clean up from our tracking anyway
@@ -377,6 +517,7 @@
                     console.log('Result note no longer exists:', resultId, error.message);
                     calculatorNotes.delete(resultId);
                     await saveCalculatorData();
+                    updateRelationshipsCount();
                 }
                 
             } catch (error) {
