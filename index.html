@@ -98,6 +98,34 @@
                     console.log('items:update listener failed:', error);
                 }
                 
+                // Alternative: Listen for items:change event
+                try {
+                    miro.board.ui.on('items:change', (event) => {
+                        console.log('Items changed, checking for parent changes');
+                        handleItemsUpdate(event);
+                    });
+                } catch (error) {
+                    console.log('items:change listener failed:', error);
+                }
+                
+                // Another alternative: Listen for board:change
+                try {
+                    miro.board.ui.on('board:change', (event) => {
+                        console.log('Board changed, checking all calculator notes');
+                        setTimeout(() => recheckAllCalculatorNotes(), 100);
+                    });
+                } catch (error) {
+                    console.log('board:change listener failed:', error);
+                }
+                
+                // Periodic check as backup (every 2 seconds)
+                setInterval(() => {
+                    if (calculatorNotes.size > 0) {
+                        console.log('Periodic check of calculator notes');
+                        recheckAllCalculatorNotes();
+                    }
+                }, 2000);
+                
                 // Force initial UI update after delays
                 setTimeout(updateUI, 500);
                 setTimeout(updateUI, 2000);
@@ -270,7 +298,12 @@
             }
         }
 
-        // Handle when items are updated - check if any are parent notes
+        // Check all calculator notes for updates (backup method)
+        async function recheckAllCalculatorNotes() {
+            for (const [resultId, calcData] of calculatorNotes.entries()) {
+                await recalculateResult(resultId, calcData);
+            }
+        }
         async function handleItemsUpdate(event) {
             console.log('Items update event:', event);
             
