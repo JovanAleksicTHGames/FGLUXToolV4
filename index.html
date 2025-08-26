@@ -117,8 +117,8 @@
                 const selection = await miro.board.getSelection();
                 console.log('Selection:', selection);
                 
-                const numbers = selection
-                    .filter(item => item.type === 'sticky_note')
+                const validItems = selection.filter(item => item.type === 'sticky_note' && item.content);
+                const numbers = validItems
                     .map(item => {
                         if (!item.content) return null;
                         // Remove HTML tags and parse number
@@ -144,12 +144,26 @@
 
                 console.log('Result:', result);
 
-                await miro.board.createStickyNote({
+                // Position to the right of the second selected item
+                const secondItem = validItems[1] || validItems[0]; // fallback to first if only one item
+                const newX = secondItem.x + (secondItem.width || 200) + 50; // Add some spacing
+                const newY = secondItem.y;
+
+                console.log('Creating sticky note at position:', { x: newX, y: newY });
+
+                const newStickyNote = await miro.board.createStickyNote({
                     content: result.toString(),
+                    x: newX,
+                    y: newY,
                     style: { 
                         fillColor: operation === 'sum' ? 'light_yellow' : 'light_green' 
                     }
                 });
+
+                console.log('Created sticky note:', newStickyNote);
+
+                // Zoom to the new sticky note to make it visible
+                await miro.board.viewport.zoomTo(newStickyNote);
 
                 showStatus(`${operation} created: ${result}`, 'success');
                 
