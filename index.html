@@ -45,6 +45,7 @@
         }
         .relationship-item.sum { border-left-color: #ffc107; }
         .relationship-item.product { border-left-color: #28a745; }
+        .relationship-item.invalid { border-left-color: #dc3545; background: #fff5f5; }
         .relationship-header { font-weight: bold; margin-bottom: 4px; cursor: pointer; }
         .relationship-header:hover { color: #007bff; text-decoration: underline; }
         .relationship-sources { font-size: 10px; color: #666; }
@@ -64,6 +65,7 @@
             color: white; 
         }
         .action-btn:hover { background: #c82333; }
+        .action-btn:disabled { background: #ccc; cursor: not-allowed; }
         .goto-btn { background: #007bff; }
         .goto-btn:hover { background: #0056b3; }
     </style>
@@ -372,8 +374,7 @@
             const content = document.getElementById('relationshipsContent');
             if (!content) return;
             
-            // First clean up orphaned relationships
-            await cleanupOrphanedRelationships();
+            console.log('Updating relationships list, current count:', calculatorNotes.size);
             
             if (calculatorNotes.size === 0) {
                 content.innerHTML = 'No calculator relationships found';
@@ -381,53 +382,73 @@
             }
             
             let html = '';
+            let validRelationships = 0;
             
             for (const [resultId, calcData] of calculatorNotes.entries()) {
                 try {
+                    console.log('Processing relationship:', resultId, calcData);
+                    
                     // Get result note info
                     let resultNote = null;
                     let resultContent = 'Unknown';
+                    let resultExists = false;
+                    
                     try {
                         resultNote = await miro.board.getById(resultId);
                         if (resultNote && resultNote.content) {
                             resultContent = resultNote.content.replace(/<[^>]*>/g, '').trim();
+                            resultExists = true;
+                            console.log('Result note found:', resultContent);
                         }
                     } catch (error) {
+                        console.log('Result note not found:', resultId, error.message);
                         resultContent = 'Deleted';
                     }
                     
                     // Get source notes info
                     const sourceInfos = [];
+                    let validSourceCount = 0;
+                    
                     for (const sourceId of calcData.sourceIds) {
                         try {
                             const sourceNote = await miro.board.getById(sourceId);
                             if (sourceNote && sourceNote.content) {
                                 const content = sourceNote.content.replace(/<[^>]*>/g, '').trim();
                                 sourceInfos.push(content);
+                                validSourceCount++;
+                                console.log('Valid source note:', content);
                             } else {
                                 sourceInfos.push('?');
+                                console.log('Source note found but no content:', sourceId);
                             }
                         } catch (error) {
                             sourceInfos.push('Deleted');
+                            console.log('Source note not found:', sourceId, error.message);
                         }
                     }
                     
+                    console.log(`Relationship ${resultId}: result exists: ${resultExists}, valid sources: ${validSourceCount}`);
+                    
+                    // Display the relationship even if some notes are missing (for debugging)
                     const operationSymbol = calcData.operation === 'sum' ? '+' : '×';
                     const sourceText = sourceInfos.join(` ${operationSymbol} `);
                     
+                    const statusClass = (resultExists && validSourceCount >= 2) ? calcData.operation : 'invalid';
+                    
                     html += `
-                        <div class="relationship-item ${calcData.operation}">
+                        <div class="relationship-item ${statusClass}">
                             <div class="relationship-header" onclick="goToResultNote('${resultId}')" title="Click to go to result note">
                                 ${calcData.operation.toUpperCase()}: ${resultContent}
+                                ${(!resultExists || validSourceCount < 2) ? ' ⚠️' : ''}
                             </div>
                             <div class="relationship-sources">
-                                Sources: ${sourceText}
+                                Sources: ${sourceText} (${validSourceCount}/${calcData.sourceIds.length} valid)
                             </div>
                             <div class="relationship-result">
-                                Result ID: ${resultId.slice(-8)}...
+                                Result ID: ${resultId.slice(-8)}... | Status: ${resultExists ? 'OK' : 'MISSING'}
                             </div>
                             <div class="relationship-actions">
-                                <button class="action-btn goto-btn" onclick="goToResultNote('${resultId}')" title="Go to result note">
+                                <button class="action-btn goto-btn" onclick="goToResultNote('${resultId}')" title="Go to result note" ${!resultExists ? 'disabled' : ''}>
                                     Go To
                                 </button>
                                 <button class="action-btn" onclick="deleteRelationship('${resultId}')" title="Delete relationship and all related notes">
@@ -436,12 +457,26 @@
                             </div>
                         </div>
                     `;
+                    
+                    if (resultExists && validSourceCount >= 2) {
+                        validRelationships++;
+                    }
+                    
                 } catch (error) {
                     console.error('Error displaying relationship:', error);
                 }
             }
             
+            console.log(`Displaying ${calculatorNotes.size} total relationships, ${validRelationships} valid`);
             content.innerHTML = html;
+            
+            // Only run cleanup after displaying, and only if there are invalid relationships
+            if (validRelationships < calculatorNotes.size) {
+                console.log('Some invalid relationships found, will clean up in 5 seconds...');
+                setTimeout(() => {
+                    cleanupOrphanedRelationships();
+                }, 5000);
+            }
         }
         
         // Update relationships count
