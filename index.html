@@ -79,7 +79,7 @@
                 sumBtn.addEventListener('click', () => calculate('sum'));
                 productBtn.addEventListener('click', () => calculate('product'));
                 
-                // Listen for selection changes - try multiple approaches
+                // Listen for selection changes - throttled
                 try {
                     miro.board.ui.on('selection:update', () => {
                         console.log('Selection changed via selection:update');
@@ -93,24 +93,25 @@
                 try {
                     miro.board.ui.on('items:update', (event) => {
                         console.log('Items updated, checking for parent changes');
-                        handleItemsUpdate(event);
+                        throttledHandleItemsUpdate(event);
                     });
                 } catch (error) {
                     console.log('items:update listener failed:', error);
                 }
                 
-                // Force initial UI update after delays (reduced frequency)
+                // Force initial UI update
                 setTimeout(throttledUpdateUI, 1000);
                 
-                // Reduced frequency periodic check (every 10 seconds instead of 2)
+                // Update UI when user clicks in the panel (but throttled)
+                document.addEventListener('click', () => {
+                    setTimeout(throttledUpdateUI, 100);
+                });
+                
+                // Reduced frequency periodic check (every 10 seconds)
                 setInterval(() => {
                     if (calculatorNotes.size > 0) {
-                        const now = Date.now();
-                        if (now - lastCalculatorCheck > 10000) { // Only every 10 seconds
-                            console.log('Periodic check of calculator notes');
-                            lastCalculatorCheck = now;
-                            recheckAllCalculatorNotes();
-                        }
+                        console.log('Periodic check of calculator notes');
+                        throttledRecheckAllCalculatorNotes();
                     }
                 }, 10000);
                 
@@ -198,14 +199,28 @@
             }
         }
 
-        // Rate-limited UI update function
+        // Rate-limited versions of functions
         function throttledUpdateUI() {
             const now = Date.now();
             if (now - lastUIUpdate > 1000) { // Only allow UI updates every 1 second
                 lastUIUpdate = now;
                 updateUI();
-            } else {
-                console.log('UI update throttled (too frequent)');
+            }
+        }
+
+        function throttledHandleItemsUpdate(event) {
+            const now = Date.now();
+            if (now - lastCalculatorCheck > 2000) { // Allow calculator checks every 2 seconds
+                lastCalculatorCheck = now;
+                handleItemsUpdate(event);
+            }
+        }
+
+        function throttledRecheckAllCalculatorNotes() {
+            const now = Date.now();
+            if (now - lastCalculatorCheck > 5000) { // Only every 5 seconds for periodic checks
+                lastCalculatorCheck = now;
+                recheckAllCalculatorNotes();
             }
         }
 
