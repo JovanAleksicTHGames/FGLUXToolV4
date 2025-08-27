@@ -635,26 +635,41 @@
 
                 // Try to delete all notes in one batch first
                 try {
-                    await miro.board.deleteItem(idsToDelete);
-                    deletedCount = idsToDelete.length;
-                    console.log('✅ Batch deleted all notes successfully');
-                } catch (batchError) {
-                    console.log('❌ Batch delete failed, trying individually:', batchError.message);
+                    // Get all item objects for batch deletion
+                    const itemObjects = [];
+                    for (const itemId of idsToDelete) {
+                        try {
+                            const item = await miro.board.getById(itemId);
+                            if (item) itemObjects.push(item);
+                        } catch (error) {
+                            console.log('Item not found:', itemId);
+                        }
+                    }
                     
-                    // If batch delete fails, try one by one
+                    // Remove all items
+                    for (const item of itemObjects) {
+                        await miro.board.remove(item);
+                        deletedCount++;
+                    }
+                    console.log('✅ Batch removed all notes successfully');
+                } catch (batchError) {
+                    console.log('❌ Batch remove failed, trying individually:', batchError.message);
+                    deletedCount = 0; // Reset counter
+                    
+                    // If batch remove fails, try one by one
                     for (const itemId of idsToDelete) {
                         try {
                             // Verify the note exists first
                             const item = await miro.board.getById(itemId);
                             if (item) {
-                                await miro.board.deleteItem([itemId]);
+                                await miro.board.remove(item);
                                 deletedCount++;
-                                console.log('✅ Individually deleted:', itemId);
+                                console.log('✅ Individually removed:', itemId);
                             } else {
                                 console.log('Note already gone:', itemId);
                             }
                         } catch (error) {
-                            console.log('❌ Could not delete note:', itemId, error.message);
+                            console.log('❌ Could not remove note:', itemId, error.message);
                             errors.push(`${itemId.slice(-8)}: ${error.message}`);
                         }
                     }
