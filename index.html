@@ -743,7 +743,7 @@
 
                 // Try to delete all notes in one batch first
                 try {
-                    console.log("Trying to remove item", miro.board.getById(idsToDelete[0]);
+                    console.log("Trying to remove item", miro.board.getById(idsToDelete[0]));
                     await miro.board.remove(miro.board.getById(idsToDelete[0]));
                     deletedCount = idsToDelete.length;
                     console.log('✅ Batch deleted all notes successfully');
