@@ -531,6 +531,8 @@
                 console.log(`Spawning ${count} sticky notes with arrows`);
                 showStatus(`Spawning ${count} sticky notes...`, 'success');
                 
+                const spacing = 400;
+                
                 // Get current viewport center
                 const viewport = await miro.board.viewport.get();
                 const centerX = viewport.x + (viewport.width / 2);
@@ -539,7 +541,6 @@
                 const stickyNotes = [];
                 const startX = centerX - ((count - 1) * spacing / 2); // Center the row
                 const startY = centerY;
-                const spacing = 400;
                 
                 // Create sticky notes
                 for (let i = 0; i < count; i++) {
