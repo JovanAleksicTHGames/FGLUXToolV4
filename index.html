@@ -539,7 +539,7 @@
                 // Create sticky notes
                 for (let i = 0; i < count; i++) {
                     const stickyNote = await miro.board.createStickyNote({
-                        content: `Note ${i + 1}`,
+                        content: `${i + 1}`,
                         x: startX + (i * spacing),
                         y: startY,
                         style: {
@@ -908,3 +908,4 @@
     </script>
 </body>
 </html>
+
