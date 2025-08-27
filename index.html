@@ -744,7 +744,7 @@
                 // Try to delete all notes in one batch first
                 try {
                     console.log("Trying to remove item", miro.board.getById(idsToDelete[0]));
-                    await miro.board.remove(miro.board.getById(idsToDelete[0]));
+                    await miro.board.delete(idsToDelete);
                     deletedCount = idsToDelete.length;
                     console.log('✅ Batch deleted all notes successfully');
                 } catch (batchError) {
@@ -756,7 +756,7 @@
                             // Verify the note exists first
                             const item = await miro.board.getById(itemId);
                             if (item) {
-                                await miro.board.remove([itemId]);
+                                await miro.board.remove(miro.board.remove.getById(itemId));
                                 deletedCount++;
                                 console.log('✅ Individually deleted:', itemId);
                             } else {
