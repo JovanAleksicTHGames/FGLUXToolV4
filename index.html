@@ -5,102 +5,210 @@
     <title>Sticky Note Calculator</title>
     <script src="https://miro.com/app/static/sdk/v2/miro.js?v=3"></script>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; margin: 0; }
-        .container { max-width: 250px; }
-        button { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 4px; cursor: pointer; }
-        .sum-btn { background: #4CAF50; color: white; }
-        .product-btn { background: #2196F3; color: white; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        #selection { padding: 10px; background: #f0f0f0; border-radius: 4px; margin-bottom: 10px; }
-        #status { margin-top: 10px; padding: 8px; border-radius: 4px; display: none; }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
-        
-        .spawn-section { 
-            margin: 15px 0; 
-            padding: 12px; 
-            background: #f8f9fa; 
-            border-radius: 6px; 
-            border: 1px solid #e9ecef; 
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            margin: 0;
         }
-        .spawn-label { 
-            font-size: 12px; 
-            font-weight: 500; 
-            margin-bottom: 6px; 
-            color: #495057; 
+
+        .container {
+            max-width: 250px;
         }
-        .spawn-input { 
-            width: 100%; 
-            padding: 8px; 
-            border: 1px solid #ced4da; 
-            border-radius: 4px; 
-            font-size: 14px; 
-            margin-bottom: 8px; 
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
         }
-        .spawn-btn { 
-            width: 100%; 
-            padding: 10px; 
-            background: #6c757d; 
-            color: white; 
-            border: none; 
-            border-radius: 4px; 
-            font-size: 13px; 
-            cursor: pointer; 
+
+        .sum-btn {
+            background: #4CAF50;
+            color: white;
         }
-        .spawn-btn:hover { background: #5a6268; }
-        
-        .relationships-section { margin-top: 20px; }
-        .toggle-btn { 
-            width: 100%; 
-            padding: 8px; 
-            background: #f8f9fa; 
-            border: 1px solid #ddd; 
-            border-radius: 4px; 
-            cursor: pointer; 
+
+        .product-btn {
+            background: #2196F3;
+            color: white;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        #selection {
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        #status {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .spawn-section {
+            margin: 15px 0;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .spawn-label {
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #495057;
+        }
+
+        .spawn-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .spawn-btn {
+            width: 100%;
+            padding: 10px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+            .spawn-btn:hover {
+                background: #5a6268;
+            }
+
+        .relationships-section {
+            margin-top: 20px;
+        }
+
+        .toggle-btn {
+            width: 100%;
+            padding: 8px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
             font-size: 12px;
             text-align: left;
         }
-        .toggle-btn:hover { background: #e9ecef; }
-        .relationships-list { 
-            border: 1px solid #ddd; 
-            border-top: none; 
-            border-radius: 0 0 4px 4px; 
-            max-height: 200px; 
+
+            .toggle-btn:hover {
+                background: #e9ecef;
+            }
+
+        .relationships-list {
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            max-height: 200px;
             overflow-y: auto;
         }
-        #relationshipsContent { padding: 10px; font-size: 11px; }
-        .relationship-item { 
-            padding: 8px; 
-            margin: 4px 0; 
-            background: #f8f9fa; 
-            border-radius: 3px; 
+
+        #relationshipsContent {
+            padding: 10px;
+            font-size: 11px;
+        }
+
+        .relationship-item {
+            padding: 8px;
+            margin: 4px 0;
+            background: #f8f9fa;
+            border-radius: 3px;
             border-left: 3px solid #007bff;
         }
-        .relationship-item.sum { border-left-color: #ffc107; }
-        .relationship-item.product { border-left-color: #28a745; }
-        .relationship-item.invalid { border-left-color: #dc3545; background: #fff5f5; }
-        .relationship-header { font-weight: bold; margin-bottom: 4px; cursor: pointer; }
-        .relationship-header:hover { color: #007bff; text-decoration: underline; }
-        .relationship-sources { font-size: 10px; color: #666; }
-        .relationship-result { font-size: 10px; color: #333; margin-top: 2px; }
-        .relationship-actions { 
-            margin-top: 6px; 
-            display: flex; 
-            gap: 5px; 
+
+            .relationship-item.sum {
+                border-left-color: #ffc107;
+            }
+
+            .relationship-item.product {
+                border-left-color: #28a745;
+            }
+
+            .relationship-item.invalid {
+                border-left-color: #dc3545;
+                background: #fff5f5;
+            }
+
+        .relationship-header {
+            font-weight: bold;
+            margin-bottom: 4px;
+            cursor: pointer;
         }
-        .action-btn { 
-            font-size: 9px; 
-            padding: 2px 6px; 
-            border: none; 
-            border-radius: 2px; 
-            cursor: pointer; 
-            background: #dc3545; 
-            color: white; 
+
+            .relationship-header:hover {
+                color: #007bff;
+                text-decoration: underline;
+            }
+
+        .relationship-sources {
+            font-size: 10px;
+            color: #666;
         }
-        .action-btn:hover { background: #c82333; }
-        .action-btn:disabled { background: #ccc; cursor: not-allowed; }
-        .goto-btn { background: #007bff; }
-        .goto-btn:hover { background: #0056b3; }
+
+        .relationship-result {
+            font-size: 10px;
+            color: #333;
+            margin-top: 2px;
+        }
+
+        .relationship-actions {
+            margin-top: 6px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-btn {
+            font-size: 9px;
+            padding: 2px 6px;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+            background: #dc3545;
+            color: white;
+        }
+
+            .action-btn:hover {
+                background: #c82333;
+            }
+
+            .action-btn:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+
+        .goto-btn {
+            background: #007bff;
+        }
+
+            .goto-btn:hover {
+                background: #0056b3;
+            }
     </style>
 </head>
 <body>
@@ -110,14 +218,14 @@
         <button id="sumBtn" class="sum-btn" disabled>Create Sum</button>
         <button id="productBtn" class="product-btn" disabled>Create Product</button>
         <div id="status"></div>
-        
+
         <!-- Spawn feature -->
         <div class="spawn-section">
             <div class="spawn-label">Input number to spawn:</div>
             <input type="number" id="spawnCount" class="spawn-input" min="1" max="20" value="3" placeholder="3">
             <button id="spawnBtn" class="spawn-btn">Spawn</button>
         </div>
-        
+
         <!-- Expandable relationships overview -->
         <div class="relationships-section">
             <button id="toggleRelationships" class="toggle-btn">
@@ -146,9 +254,9 @@
         // Initialize when ready
         async function init() {
             if (isInitialized) return;
-            
+
             console.log('Initializing app');
-            
+
             try {
                 // Wait for miro to be available
                 if (typeof miro === 'undefined') {
@@ -156,19 +264,19 @@
                     setTimeout(init, 100);
                     return;
                 }
-                
+
                 // Set up the UI immediately
                 setupUI();
-                
+
                 // Load any existing calculator data
                 await loadCalculatorData();
-                
+
                 // Update relationships count
                 updateRelationshipsCount();
-                
+
                 isInitialized = true;
                 console.log('App initialized successfully');
-                
+
             } catch (error) {
                 console.error('Init error:', error);
                 setTimeout(init, 500);
@@ -177,38 +285,38 @@
 
         function setupUI() {
             console.log('Setting up UI');
-            
+
             const sumBtn = document.getElementById('sumBtn');
             const productBtn = document.getElementById('productBtn');
-            
+
             if (sumBtn && productBtn) {
                 sumBtn.addEventListener('click', () => calculate('sum'));
                 productBtn.addEventListener('click', () => calculate('product'));
-                
+
                 // Set up spawn button
                 const spawnBtn = document.getElementById('spawnBtn');
                 if (spawnBtn) {
                     spawnBtn.addEventListener('click', spawnStickyNotes);
                 }
-                
+
                 // Set up relationships toggle
                 const toggleBtn = document.getElementById('toggleRelationships');
                 const relationshipsList = document.getElementById('relationshipsList');
-                
+
                 if (toggleBtn && relationshipsList) {
                     toggleBtn.addEventListener('click', () => {
                         const isVisible = relationshipsList.style.display !== 'none';
                         relationshipsList.style.display = isVisible ? 'none' : 'block';
-                        toggleBtn.innerHTML = isVisible 
+                        toggleBtn.innerHTML = isVisible
                             ? `▼ Show Relationships (<span id="relationshipCount">${calculatorNotes.size}</span>)`
                             : `▲ Hide Relationships (<span id="relationshipCount">${calculatorNotes.size}</span>)`;
-                        
+
                         if (!isVisible) {
                             updateRelationshipsList();
                         }
                     });
                 }
-                
+
                 // Listen for selection changes - throttled
                 try {
                     miro.board.ui.on('selection:update', () => {
@@ -218,7 +326,7 @@
                 } catch (error) {
                     console.log('selection:update listener failed:', error);
                 }
-                
+
                 // Listen for items being updated (for dynamic recalculation)
                 try {
                     miro.board.ui.on('items:update', (event) => {
@@ -228,15 +336,15 @@
                 } catch (error) {
                     console.log('items:update listener failed:', error);
                 }
-                
+
                 // Force initial UI update
                 setTimeout(throttledUpdateUI, 1000);
-                
+
                 // Update UI when user clicks in the panel (but throttled)
                 document.addEventListener('click', () => {
                     setTimeout(throttledUpdateUI, 100);
                 });
-                
+
                 // Reduced frequency periodic check (every 10 seconds)
                 setInterval(() => {
                     if (calculatorNotes.size > 0) {
@@ -244,18 +352,18 @@
                         throttledRecheckAllCalculatorNotes();
                     }
                 }, 10000);
-                
+
                 console.log('Event listeners set up');
             }
         }
 
         async function calculate(operation) {
             console.log('Calculate:', operation);
-            
+
             try {
                 const selection = await miro.board.getSelection();
                 console.log('Selection:', selection);
-                
+
                 const validItems = selection.filter(item => item.type === 'sticky_note' && item.content);
                 const numbers = validItems
                     .map(item => {
@@ -266,9 +374,9 @@
                         return isNaN(num) ? null : num;
                     })
                     .filter(n => n !== null);
-                
+
                 console.log('Numbers found:', numbers);
-                
+
                 if (numbers.length < 2) {
                     showStatus('Please select at least 2 sticky notes with numbers', 'error');
                     return;
@@ -294,8 +402,8 @@
                     content: result.toString(),
                     x: newX,
                     y: newY,
-                    style: { 
-                        fillColor: operation === 'sum' ? 'light_yellow' : 'light_green' 
+                    style: {
+                        fillColor: operation === 'sum' ? 'light_yellow' : 'light_green'
                     }
                 });
 
@@ -317,7 +425,7 @@
 
                 // Save to board metadata for persistence
                 await saveCalculatorData();
-                
+
                 // Update relationships display
                 updateRelationshipsCount();
 
@@ -325,7 +433,7 @@
                 await miro.board.viewport.zoomTo(newStickyNote);
 
                 showStatus(`${operation} created: ${result}`, 'success');
-                
+
             } catch (error) {
                 console.error('Error in calculate:', error);
                 showStatus('Error: ' + error.message, 'error');
@@ -361,16 +469,16 @@
             console.log('=== Updating UI ===');
             try {
                 const selection = await miro.board.getSelection();
-                
+
                 if (!selection || !Array.isArray(selection)) {
                     console.log('Invalid selection returned');
                     return;
                 }
-                
+
                 const numbers = [];
                 for (let i = 0; i < selection.length; i++) {
                     const item = selection[i];
-                    
+
                     if (item.type === 'sticky_note' && item.content) {
                         let cleanContent = item.content.trim();
                         cleanContent = cleanContent.replace(/<[^>]*>/g, '');
@@ -380,32 +488,32 @@
                         }
                     }
                 }
-                
+
                 const hasEnough = numbers.length >= 2;
-                
+
                 const sumBtn = document.getElementById('sumBtn');
                 const productBtn = document.getElementById('productBtn');
                 const selectionDiv = document.getElementById('selection');
-                
+
                 if (sumBtn) {
                     sumBtn.disabled = !hasEnough;
                     if (numbers.length > 0) {
                         sumBtn.disabled = false; // Force enable if any numbers
                     }
                 }
-                
+
                 if (productBtn) {
                     productBtn.disabled = !hasEnough;
                     if (numbers.length > 0) {
                         productBtn.disabled = false; // Force enable if any numbers
                     }
                 }
-                
+
                 if (selectionDiv) {
                     const text = `Selection: ${selection.length} items, ${numbers.length} numbers: [${numbers.join(', ')}]`;
                     selectionDiv.textContent = text;
                 }
-                
+
             } catch (error) {
                 console.error('Error in updateUI:', error);
                 const sumBtn = document.getElementById('sumBtn');
@@ -419,26 +527,26 @@
         async function updateRelationshipsList() {
             const content = document.getElementById('relationshipsContent');
             if (!content) return;
-            
+
             console.log('Updating relationships list, current count:', calculatorNotes.size);
-            
+
             // Quick verification before displaying
             await verifyAndCleanupRelationships();
-            
+
             if (calculatorNotes.size === 0) {
                 content.innerHTML = 'No calculator relationships found';
                 return;
             }
-            
+
             let html = '';
             let displayedCount = 0;
-            
+
             for (const [resultId, calcData] of calculatorNotes.entries()) {
                 try {
                     // Get result note info
                     let resultContent = 'Loading...';
                     let resultExists = false;
-                    
+
                     try {
                         const resultNote = await miro.board.getById(resultId);
                         if (resultNote && resultNote.content) {
@@ -449,11 +557,11 @@
                         // This relationship should have been cleaned up
                         continue;
                     }
-                    
+
                     // Get source notes info
                     const sourceInfos = [];
                     let validSourceCount = 0;
-                    
+
                     for (const sourceId of calcData.sourceIds) {
                         try {
                             const sourceNote = await miro.board.getById(sourceId);
@@ -466,41 +574,41 @@
                             // Source note missing - this relationship should have been cleaned up
                         }
                     }
-                    
+
                     // Only display if we have valid result and sufficient sources
                     if (resultExists && validSourceCount >= 2) {
                         const operationSymbol = calcData.operation === 'sum' ? '+' : '×';
                         const sourceText = sourceInfos.join(` ${operationSymbol} `);
-                        
+
                         html += `
-                            <div class="relationship-item ${calcData.operation}">
-                                <div class="relationship-header" onclick="goToResultNote('${resultId}')" title="Click to go to result note">
-                                    ${calcData.operation.toUpperCase()}: ${resultContent}
+                                <div class="relationship-item ${calcData.operation}">
+                                    <div class="relationship-header" onclick="goToResultNote('${resultId}')" title="Click to go to result note">
+                                        ${calcData.operation.toUpperCase()}: ${resultContent}
+                                    </div>
+                                    <div class="relationship-sources">
+                                        Sources: ${sourceText}
+                                    </div>
+                                    <div class="relationship-result">
+                                        Result ID: ${resultId.slice(-8)}... | ${validSourceCount} sources
+                                    </div>
+                                    <div class="relationship-actions">
+                                        <button class="action-btn goto-btn" onclick="goToResultNote('${resultId}')" title="Go to result note">
+                                            Go To
+                                        </button>
+                                        <button class="action-btn" onclick="deleteRelationship('${resultId}')" title="Delete relationship and all related notes">
+                                            Delete All
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="relationship-sources">
-                                    Sources: ${sourceText}
-                                </div>
-                                <div class="relationship-result">
-                                    Result ID: ${resultId.slice(-8)}... | ${validSourceCount} sources
-                                </div>
-                                <div class="relationship-actions">
-                                    <button class="action-btn goto-btn" onclick="goToResultNote('${resultId}')" title="Go to result note">
-                                        Go To
-                                    </button>
-                                    <button class="action-btn" onclick="deleteRelationship('${resultId}')" title="Delete relationship and all related notes">
-                                        Delete All
-                                    </button>
-                                </div>
-                            </div>
-                        `;
+                            `;
                         displayedCount++;
                     }
-                    
+
                 } catch (error) {
                     console.error('Error displaying relationship:', error);
                 }
             }
-            
+
             if (displayedCount === 0) {
                 content.innerHTML = 'No valid calculator relationships found';
             } else {
@@ -508,7 +616,7 @@
                 console.log(`✅ Displayed ${displayedCount} valid relationships`);
             }
         }
-        
+
         // Update relationships count
         function updateRelationshipsCount() {
             const countElement = document.getElementById('relationshipCount');
@@ -522,20 +630,20 @@
             try {
                 const countInput = document.getElementById('spawnCount');
                 const count = parseInt(countInput.value) || 3;
-                
+
                 if (count < 1 || count > 20) {
                     showStatus('Please enter a number between 1 and 20', 'error');
                     return;
                 }
-                
+
                 console.log(`Spawning ${count} sticky notes with arrows`);
                 showStatus(`Spawning ${count} sticky notes...`, 'success');
-                
+
                 const stickyNotes = [];
                 const startX = 0;
                 const startY = 0;
                 const spacing = 400;
-                
+
                 // Create sticky notes
                 for (let i = 0; i < count; i++) {
                     const stickyNote = await miro.board.createStickyNote({
@@ -549,13 +657,13 @@
                     stickyNotes.push(stickyNote);
                     console.log(`Created sticky note ${i + 1}:`, stickyNote.id);
                 }
-                
+
                 // Create arrows/connectors between consecutive notes
                 for (let i = 0; i < stickyNotes.length - 1; i++) {
                     try {
                         const startNote = stickyNotes[i];
                         const endNote = stickyNotes[i + 1];
-                        
+
                         const connector = await miro.board.createConnector({
                             start: {
                                 item: startNote.id,
@@ -570,21 +678,21 @@
                                 strokeWidth: 2
                             }
                         });
-                        
+
                         console.log(`Created connector ${i + 1}:`, connector.id);
                     } catch (connectorError) {
                         console.log('Could not create connector:', connectorError.message);
                         // Continue even if connector creation fails
                     }
                 }
-                
+
                 // Zoom to show all created notes
                 if (stickyNotes.length > 0) {
                     await miro.board.viewport.zoomTo(stickyNotes);
                 }
-                
+
                 showStatus(`Successfully spawned ${count} sticky notes with arrows!`, 'success');
-                
+
             } catch (error) {
                 console.error('Error spawning sticky notes:', error);
                 showStatus('Error spawning sticky notes: ' + error.message, 'error');
@@ -592,7 +700,7 @@
         }
 
         // Navigate to result note (global function for onclick)
-        window.goToResultNote = async function(resultId) {
+        window.goToResultNote = async function (resultId) {
             try {
                 console.log('Navigating to result note:', resultId);
                 const resultNote = await miro.board.getById(resultId);
@@ -611,7 +719,7 @@
         }
 
         // Delete relationship and all related notes
-        window.deleteRelationship = async function(resultId) {
+        window.deleteRelationship = async function (resultId) {
             try {
                 const calcData = calculatorNotes.get(resultId);
                 if (!calcData) {
@@ -620,7 +728,7 @@
                 }
 
                 const confirmMessage = `Delete this relationship and ALL related notes?\n\nThis will delete:\n- The result note (${calcData.operation})\n- All ${calcData.sourceIds.length} source notes\n\nThis action cannot be undone.`;
-                
+
                 if (!confirm(confirmMessage)) {
                     return;
                 }
@@ -635,19 +743,19 @@
 
                 // Try to delete all notes in one batch first
                 try {
-                    await miro.board.deleteItem(idsToDelete);
+                    await miro.board.remove(idsToDelete);
                     deletedCount = idsToDelete.length;
                     console.log('✅ Batch deleted all notes successfully');
                 } catch (batchError) {
                     console.log('❌ Batch delete failed, trying individually:', batchError.message);
-                    
+
                     // If batch delete fails, try one by one
                     for (const itemId of idsToDelete) {
                         try {
                             // Verify the note exists first
                             const item = await miro.board.getById(itemId);
                             if (item) {
-                                await miro.board.deleteItem([itemId]);
+                                await miro.board.remove([itemId]);
                                 deletedCount++;
                                 console.log('✅ Individually deleted:', itemId);
                             } else {
@@ -661,10 +769,10 @@
                 }
 
                 // Remove from tracking regardless of deletion success
-                calculatorNotes.delete(resultId);
+                calculatorNotes.remove(resultId);
                 await saveCalculatorData();
                 updateRelationshipsCount();
-                
+
                 // Refresh the relationships list
                 await updateRelationshipsList();
 
@@ -675,7 +783,7 @@
                 } else {
                     showStatus(`Successfully deleted ${deletedCount} notes`, 'success');
                 }
-                
+
             } catch (error) {
                 console.error('Error deleting relationship:', error);
                 showStatus('Error deleting relationship: ' + error.message, 'error');
@@ -688,10 +796,10 @@
         }
         async function handleItemsUpdate(event) {
             console.log('Items update event:', event);
-            
+
             for (const updatedItem of event.items) {
                 console.log('Updated item:', updatedItem.id, updatedItem.type);
-                
+
                 if (updatedItem.type === 'sticky_note') {
                     // Check if this updated item is a source for any calculator notes
                     for (const [resultId, calcData] of calculatorNotes.entries()) {
@@ -709,17 +817,17 @@
             try {
                 console.log('Recalculating result note:', resultId);
                 console.log('Calc data:', calcData);
-                
+
                 // Get current values of all source notes
                 const sourceValues = [];
                 const validSourceIds = [];
-                
+
                 for (const sourceId of calcData.sourceIds) {
                     try {
                         console.log('Checking source ID:', sourceId);
                         const sourceItem = await miro.board.getById(sourceId);
                         console.log('Source item:', sourceItem);
-                        
+
                         if (sourceItem && sourceItem.type === 'sticky_note' && sourceItem.content) {
                             const cleanContent = sourceItem.content.replace(/<[^>]*>/g, '').trim();
                             console.log('Clean content:', cleanContent);
@@ -734,25 +842,25 @@
                         console.log('Source note not found or error:', sourceId, error.message);
                     }
                 }
-                
+
                 console.log('Current source values:', sourceValues);
-                
+
                 if (sourceValues.length < 2) {
                     console.log('Not enough valid source values, removing calculator note');
                     try {
-                        await miro.board.deleteItem(resultId);
-                        calculatorNotes.delete(resultId);
+                        await miro.board.remove(resultId);
+                        calculatorNotes.remove(resultId);
                         await saveCalculatorData();
                         updateRelationshipsCount();
                     } catch (error) {
                         console.log('Error removing calculator note (might already be gone):', error.message);
                         // Clean up from our tracking anyway
-                        calculatorNotes.delete(resultId);
+                        calculatorNotes.remove(resultId);
                         await saveCalculatorData();
                     }
                     return;
                 }
-                
+
                 // Calculate new result
                 let newResult;
                 if (calcData.operation === 'sum') {
@@ -760,9 +868,9 @@
                 } else {
                     newResult = sourceValues.reduce((a, b) => a * b, 1);
                 }
-                
+
                 console.log('New calculated result:', newResult);
-                
+
                 // Update the result sticky note
                 try {
                     const resultItem = await miro.board.getById(resultId);
@@ -774,11 +882,11 @@
                     }
                 } catch (error) {
                     console.log('Result note no longer exists:', resultId, error.message);
-                    calculatorNotes.delete(resultId);
+                    calculatorNotes.remove(resultId);
                     await saveCalculatorData();
                     updateRelationshipsCount();
                 }
-                
+
             } catch (error) {
                 console.error('Error in recalculateResult:', error);
             }
@@ -802,7 +910,7 @@
                 if (data) {
                     calculatorNotes = new Map(Object.entries(data));
                     console.log('Loaded calculator data from storage:', calculatorNotes.size, 'relationships');
-                    
+
                     // Immediately verify and clean up invalid relationships
                     await verifyAndCleanupRelationships();
                 } else {
@@ -819,10 +927,10 @@
         async function verifyAndCleanupRelationships() {
             console.log('Verifying all relationships on load...');
             const toDelete = [];
-            
+
             for (const [resultId, calcData] of calculatorNotes.entries()) {
                 let isValid = true;
-                
+
                 // Check if result note exists
                 try {
                     const resultNote = await miro.board.getById(resultId);
@@ -834,7 +942,7 @@
                     console.log(`❌ Result note not found: ${resultId}`);
                     isValid = false;
                 }
-                
+
                 // Check source notes
                 let validSourceCount = 0;
                 for (const sourceId of calcData.sourceIds) {
@@ -847,24 +955,24 @@
                         // Source note doesn't exist
                     }
                 }
-                
+
                 if (validSourceCount < 2) {
                     console.log(`❌ Not enough valid sources: ${validSourceCount}/2 for ${resultId}`);
                     isValid = false;
                 }
-                
+
                 if (!isValid) {
                     toDelete.push(resultId);
                 }
             }
-            
+
             // Remove invalid relationships
             if (toDelete.length > 0) {
                 for (const resultId of toDelete) {
-                    calculatorNotes.delete(resultId);
+                    calculatorNotes.remove(resultId);
                     console.log(`🗑️ Removed invalid relationship: ${resultId}`);
                 }
-                
+
                 await saveCalculatorData();
                 console.log(`✅ Cleaned up ${toDelete.length} invalid relationships on load`);
             } else {
@@ -893,3 +1001,4 @@
     </script>
 </body>
 </html>
+
