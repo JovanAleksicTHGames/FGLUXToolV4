@@ -540,8 +540,8 @@
                 for (let i = 0; i < count; i++) {
                     const stickyNote = await miro.board.createStickyNote({
                         content: `${i + 1}`,
-                        x: startX + (i * spacing),
-                        y: startY,
+                        x: startX,
+                        y: startY + (i * spacing),
                         style: {
                             fillColor: 'light_blue'
                         }
@@ -908,4 +908,5 @@
     </script>
 </body>
 </html>
+
 
