@@ -681,6 +681,7 @@
                 const startX = centerX - ((quantity - 1) * spacing / 2);
                 const resourceNotes = [];
                 
+                // Create only the requested quantity of resources for this pool
                 for (let i = 0; i < quantity; i++) {
                     const resource = await miro.board.createStickyNote({
                         content: content,
@@ -690,6 +691,7 @@
                     });
                     resourceNotes.push(resource);
                     
+                    // Track each resource individually for global updates
                     if (!spawnedResources.has(resourceType)) {
                         spawnedResources.set(resourceType, []);
                     }
@@ -720,6 +722,7 @@
                     style: { fillColor: 'light_gray' }
                 });
                 
+                // Track the sum calculation for THIS specific pool only
                 const sourceIds = resourceNotes.map(note => note.id);
                 calculatorNotes.set(sumNote.id, {
                     operation: 'sum',
@@ -728,6 +731,7 @@
                     created: Date.now()
                 });
                 
+                // Track the path calculation for THIS specific pool only
                 const pathKey = `${pathType}-${Date.now().toString().slice(-6)}`;
                 pathCalculations.set(pathNote.id, {
                     pathType: pathType,
