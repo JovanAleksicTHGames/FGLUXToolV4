@@ -335,9 +335,13 @@
         // Icon click handler
         miro.board.ui.on('icon:click', async () => {
             console.log('Icon clicked');
-            await miro.board.ui.openPanel({
-                url: 'https://fglux-tool-v4.vercel.app/'
-            });
+            try {
+                await miro.board.ui.openPanel({
+                    url: 'https://fglux-tool-v4.vercel.app/'
+                });
+            } catch (error) {
+                console.error('Error opening panel:', error);
+            }
         });
 
         // Initialize
@@ -353,7 +357,7 @@
                     return;
                 }
                 
-                setupUI();
+                await setupUI();
                 await loadCalculatorData();
                 updateRelationshipsCount();
                 
@@ -366,75 +370,97 @@
             }
         }
 
-        function setupUI() {
+        async function setupUI() {
             console.log('Setting up UI');
             
-            // Calculator buttons
-            document.getElementById('sumBtn').addEventListener('click', () => calculate('sum'));
-            document.getElementById('productBtn').addEventListener('click', () => calculate('product'));
-            
-            // Resource creation buttons
-            document.getElementById('createBarrelSmall').addEventListener('click', () => createResource('barrel', 'small'));
-            document.getElementById('createBarrelMedium').addEventListener('click', () => createResource('barrel', 'medium'));
-            document.getElementById('createBarrelBig').addEventListener('click', () => createResource('barrel', 'big'));
-            document.getElementById('createDig').addEventListener('click', () => createResource('dig', 'standard'));
-            document.getElementById('createCrate').addEventListener('click', () => createResource('crate', 'standard'));
-            
-            // Pool management buttons
-            document.getElementById('createUnusedPool').addEventListener('click', () => createPool('unused'));
-            document.getElementById('createUsedPool').addEventListener('click', () => createPool('used'));
-            
-            // Spawn button
-            document.getElementById('spawnBtn').addEventListener('click', spawnConnectedNumbers);
-            
-            // Relationships toggle
-            const toggleBtn = document.getElementById('toggleRelationships');
-            const relationshipsList = document.getElementById('relationshipsList');
-            
-            toggleBtn.addEventListener('click', () => {
-                const isVisible = relationshipsList.style.display !== 'none';
-                relationshipsList.style.display = isVisible ? 'none' : 'block';
-                toggleBtn.innerHTML = isVisible 
-                    ? `▼ Show Relationships (<span id="relationshipCount">${calculatorNotes.size}</span>)`
-                    : `▲ Hide Relationships (<span id="relationshipCount">${calculatorNotes.size}</span>)`;
+            try {
+                // Calculator buttons
+                const sumBtn = document.getElementById('sumBtn');
+                const productBtn = document.getElementById('productBtn');
+                if (sumBtn) sumBtn.addEventListener('click', () => calculate('sum'));
+                if (productBtn) productBtn.addEventListener('click', () => calculate('product'));
                 
-                if (!isVisible) {
-                    updateRelationshipsList();
+                // Resource creation buttons
+                const createBarrelSmall = document.getElementById('createBarrelSmall');
+                const createBarrelMedium = document.getElementById('createBarrelMedium');
+                const createBarrelBig = document.getElementById('createBarrelBig');
+                const createDig = document.getElementById('createDig');
+                const createCrate = document.getElementById('createCrate');
+                
+                if (createBarrelSmall) createBarrelSmall.addEventListener('click', () => createResource('barrel', 'small'));
+                if (createBarrelMedium) createBarrelMedium.addEventListener('click', () => createResource('barrel', 'medium'));
+                if (createBarrelBig) createBarrelBig.addEventListener('click', () => createResource('barrel', 'big'));
+                if (createDig) createDig.addEventListener('click', () => createResource('dig', 'standard'));
+                if (createCrate) createCrate.addEventListener('click', () => createResource('crate', 'standard'));
+                
+                // Pool management buttons
+                const createUnusedPool = document.getElementById('createUnusedPool');
+                const createUsedPool = document.getElementById('createUsedPool');
+                if (createUnusedPool) createUnusedPool.addEventListener('click', () => createPool('unused'));
+                if (createUsedPool) createUsedPool.addEventListener('click', () => createPool('used'));
+                
+                // Spawn button
+                const spawnBtn = document.getElementById('spawnBtn');
+                if (spawnBtn) spawnBtn.addEventListener('click', spawnConnectedNumbers);
+                
+                // Relationships toggle
+                const toggleBtn = document.getElementById('toggleRelationships');
+                const relationshipsList = document.getElementById('relationshipsList');
+                
+                if (toggleBtn && relationshipsList) {
+                    toggleBtn.addEventListener('click', () => {
+                        const isVisible = relationshipsList.style.display !== 'none';
+                        relationshipsList.style.display = isVisible ? 'none' : 'block';
+                        const countSpan = document.getElementById('relationshipCount');
+                        const count = countSpan ? countSpan.textContent : '0';
+                        toggleBtn.innerHTML = isVisible 
+                            ? `▼ Show Relationships (<span id="relationshipCount">${count}</span>)`
+                            : `▲ Hide Relationships (<span id="relationshipCount">${count}</span>)`;
+                        
+                        if (!isVisible) {
+                            updateRelationshipsList();
+                        }
+                    });
                 }
-            });
-            
-            // Modal handlers
-            document.getElementById('confirmRename').addEventListener('click', confirmRename);
-            document.getElementById('cancelRename').addEventListener('click', cancelRename);
-            
-            // Selection updates
-            try {
-                miro.board.ui.on('selection:update', () => {
-                    throttledUpdateUI();
-                });
-            } catch (error) {
-                console.log('selection:update listener failed:', error);
-            }
-            
-            try {
-                miro.board.ui.on('items:update', (event) => {
-                    throttledHandleItemsUpdate(event);
-                });
-            } catch (error) {
-                console.log('items:update listener failed:', error);
-            }
-            
-            // Initial UI update
-            setTimeout(throttledUpdateUI, 1000);
-            
-            // Periodic checks
-            setInterval(() => {
-                if (calculatorNotes.size > 0) {
-                    throttledRecheckAllCalculatorNotes();
+                
+                // Modal handlers
+                const confirmRename = document.getElementById('confirmRename');
+                const cancelRename = document.getElementById('cancelRename');
+                if (confirmRename) confirmRename.addEventListener('click', confirmRenameHandler);
+                if (cancelRename) cancelRename.addEventListener('click', cancelRenameHandler);
+                
+                // Selection updates
+                try {
+                    miro.board.ui.on('selection:update', () => {
+                        throttledUpdateUI();
+                    });
+                } catch (error) {
+                    console.log('selection:update listener failed:', error);
                 }
-            }, 10000);
-            
-            console.log('UI setup complete');
+                
+                try {
+                    miro.board.ui.on('items:update', (event) => {
+                        throttledHandleItemsUpdate(event);
+                    });
+                } catch (error) {
+                    console.log('items:update listener failed:', error);
+                }
+                
+                // Initial UI update
+                setTimeout(throttledUpdateUI, 1000);
+                
+                // Periodic checks
+                setInterval(() => {
+                    if (calculatorNotes.size > 0) {
+                        throttledRecheckAllCalculatorNotes();
+                    }
+                }, 10000);
+                
+                console.log('UI setup complete');
+                
+            } catch (error) {
+                console.error('Error setting up UI:', error);
+            }
         }
 
         // Resource creation
@@ -516,9 +542,15 @@
         function getGlobalValue(type, size) {
             if (type === 'barrel') {
                 switch(size) {
-                    case 'small': return document.getElementById('barrelSmall').value;
-                    case 'medium': return document.getElementById('barrelMedium').value;
-                    case 'big': return document.getElementById('barrelBig').value;
+                    case 'small': 
+                        const smallInput = document.getElementById('barrelSmall');
+                        return smallInput ? smallInput.value : '5';
+                    case 'medium': 
+                        const mediumInput = document.getElementById('barrelMedium');
+                        return mediumInput ? mediumInput.value : '10';
+                    case 'big': 
+                        const bigInput = document.getElementById('barrelBig');
+                        return bigInput ? bigInput.value : '20';
                 }
             }
             return '0';
@@ -590,7 +622,7 @@
         async function spawnConnectedNumbers() {
             try {
                 const countInput = document.getElementById('spawnCount');
-                const count = parseInt(countInput.value) || 3;
+                const count = parseInt(countInput ? countInput.value : 3) || 3;
                 
                 if (count < 1 || count > 20) {
                     showStatus('Please enter a number between 1 and 20', 'error');
@@ -826,8 +858,6 @@
         // Global functions for onclick handlers
         window.goToResultNote = async function(resultId) {
             try {
-        window.goToResultNote = async function(resultId) {
-            try {
                 const resultNote = await miro.board.getById(resultId);
                 if (resultNote) {
                     await miro.board.viewport.zoomTo(resultNote);
@@ -847,13 +877,16 @@
             const calcData = calculatorNotes.get(resultId);
             const currentName = calcData ? calcData.name : 'Unnamed';
             
-            document.getElementById('renameInput').value = currentName;
-            document.getElementById('renameModal').style.display = 'block';
-            document.getElementById('renameInput').focus();
+            const renameInput = document.getElementById('renameInput');
+            const renameModal = document.getElementById('renameModal');
+            if (renameInput) renameInput.value = currentName;
+            if (renameModal) renameModal.style.display = 'block';
+            if (renameInput) renameInput.focus();
         }
 
-        function confirmRename() {
-            const newName = document.getElementById('renameInput').value.trim();
+        function confirmRenameHandler() {
+            const renameInput = document.getElementById('renameInput');
+            const newName = renameInput ? renameInput.value.trim() : '';
             if (newName && currentRenamingId) {
                 const calcData = calculatorNotes.get(currentRenamingId);
                 if (calcData) {
@@ -864,13 +897,15 @@
                     showStatus('Relationship renamed', 'success');
                 }
             }
-            cancelRename();
+            cancelRenameHandler();
         }
 
-        function cancelRename() {
-            document.getElementById('renameModal').style.display = 'none';
+        function cancelRenameHandler() {
+            const renameModal = document.getElementById('renameModal');
+            const renameInput = document.getElementById('renameInput');
+            if (renameModal) renameModal.style.display = 'none';
             currentRenamingId = null;
-            document.getElementById('renameInput').value = '';
+            if (renameInput) renameInput.value = '';
         }
 
         window.deleteRelationship = async function(resultId) {
@@ -944,14 +979,18 @@
 
         // Item update handling
         async function handleItemsUpdate(event) {
-            for (const updatedItem of event.items) {
-                if (updatedItem.type === 'sticky_note') {
-                    for (const [resultId, calcData] of calculatorNotes.entries()) {
-                        if (calcData.sourceIds.includes(updatedItem.id)) {
-                            await recalculateResult(resultId, calcData);
+            try {
+                for (const updatedItem of event.items) {
+                    if (updatedItem.type === 'sticky_note') {
+                        for (const [resultId, calcData] of calculatorNotes.entries()) {
+                            if (calcData.sourceIds.includes(updatedItem.id)) {
+                                await recalculateResult(resultId, calcData);
+                            }
                         }
                     }
                 }
+            } catch (error) {
+                console.error('Error handling items update:', error);
             }
         }
 
@@ -1018,12 +1057,15 @@
                 console.error('Error in recalculateResult:', error);
             }
         }
-        }
 
         async function recheckAllCalculatorNotes() {
-            await verifyAndCleanupRelationships();
-            for (const [resultId, calcData] of calculatorNotes.entries()) {
-                await recalculateResult(resultId, calcData);
+            try {
+                await verifyAndCleanupRelationships();
+                for (const [resultId, calcData] of calculatorNotes.entries()) {
+                    await recalculateResult(resultId, calcData);
+                }
+            } catch (error) {
+                console.error('Error in recheckAllCalculatorNotes:', error);
             }
         }
 
