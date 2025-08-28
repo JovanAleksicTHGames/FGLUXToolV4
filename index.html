@@ -621,7 +621,7 @@
                     fillColor = 'light_blue';
                 }
                 
-                // Create resources in a row
+                // Create resources in a row (no connectors)
                 const spacing = 250;
                 const startX = centerX - ((quantity - 1) * spacing / 2);
                 const resourceNotes = [];
@@ -642,29 +642,7 @@
                     spawnedResources.get(resourceType).push(resource.id);
                 }
                 
-                // Create connectors between resources
-                for (let i = 0; i < resourceNotes.length - 1; i++) {
-                    try {
-                        await miro.board.createConnector({
-                            start: {
-                                item: resourceNotes[i].id,
-                                snapTo: 'right'
-                            },
-                            end: {
-                                item: resourceNotes[i + 1].id,
-                                snapTo: 'left'
-                            },
-                            style: {
-                                strokeColor: '#1976d2',
-                                strokeWidth: 2
-                            }
-                        });
-                    } catch (connectorError) {
-                        console.log('Could not create connector:', connectorError.message);
-                    }
-                }
-                
-                // Create sum note
+                // Create sum note (no visual connection to resources)
                 const totalValue = parseInt(value) * quantity;
                 const lastResource = resourceNotes[resourceNotes.length - 1];
                 const sumX = lastResource.x + (lastResource.width || 200) + 100;
@@ -676,26 +654,6 @@
                     y: sumY,
                     style: { fillColor: fillColor }
                 });
-                
-                // Connect last resource to sum
-                try {
-                    await miro.board.createConnector({
-                        start: {
-                            item: lastResource.id,
-                            snapTo: 'right'
-                        },
-                        end: {
-                            item: sumNote.id,
-                            snapTo: 'left'
-                        },
-                        style: {
-                            strokeColor: '#28a745',
-                            strokeWidth: 3
-                        }
-                    });
-                } catch (connectorError) {
-                    console.log('Could not create sum connector:', connectorError.message);
-                }
                 
                 // Track the calculation relationship
                 const sourceIds = resourceNotes.map(note => note.id);
