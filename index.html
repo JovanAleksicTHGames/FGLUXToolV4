@@ -114,6 +114,23 @@
             display: flex;
             gap: 4px;
             margin-bottom: 8px;
+            flex-direction: column;
+        }
+        
+        .pool-select {
+            padding: 6px;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+            font-size: 11px;
+            background: white;
+        }
+        
+        .pool-input {
+            padding: 6px;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+            font-size: 11px;
+            text-align: center;
         }
         
         .pool-btn {
@@ -122,8 +139,7 @@
             font-size: 11px;
         }
         
-        .pool-unused { background: #f8f9fa; color: #495057; border: 1px solid #ced4da; }
-        .pool-used { background: #6c757d; color: white; }
+        .pool-create { background: #007bff; color: white; border: 1px solid #007bff; }
         
         /* Spawn */
         .spawn-input {
@@ -299,11 +315,18 @@
         
         <!-- Pool Management -->
         <div class="section">
-            <div class="section-title">Pool Management</div>
+            <div class="section-title">Resource Pool Spawner</div>
             <div class="pool-controls">
-                <button id="createUnusedPool" class="pool-btn pool-unused">Create Unused Pool</button>
-                <button id="createUsedPool" class="pool-btn pool-used">Create Used Pool</button>
+                <select id="resourceTypeSelect" class="pool-select">
+                    <option value="barrel-small">Small Barrel</option>
+                    <option value="barrel-medium">Med Barrel</option>
+                    <option value="barrel-big">Big Barrel</option>
+                    <option value="dig">Dig</option>
+                    <option value="crate">Crate</option>
+                </select>
+                <input type="number" id="poolQuantity" class="pool-input" min="2" max="20" value="3" placeholder="Quantity">
             </div>
+            <button id="createResourcePool" class="pool-btn pool-create">Create Connected Pool</button>
         </div>
         
         <!-- Spawn -->
@@ -406,11 +429,9 @@
                 if (createDig) createDig.addEventListener('click', () => createResource('dig', 'standard'));
                 if (createCrate) createCrate.addEventListener('click', () => createResource('crate', 'standard'));
                 
-                // Pool management buttons
-                const createUnusedPool = document.getElementById('createUnusedPool');
-                const createUsedPool = document.getElementById('createUsedPool');
-                if (createUnusedPool) createUnusedPool.addEventListener('click', () => createPool('unused'));
-                if (createUsedPool) createUsedPool.addEventListener('click', () => createPool('used'));
+                // Resource pool spawner button
+                const createResourcePoolBtn = document.getElementById('createResourcePool');
+                if (createResourcePoolBtn) createResourcePoolBtn.addEventListener('click', createResourcePoolHandler);
                 
                 // Spawn button
                 const spawnBtn = document.getElementById('spawnBtn');
@@ -520,34 +541,152 @@
             }
         }
 
-        // Pool creation
-        async function createPool(poolType) {
+        // Resource pool creation
+        async function createResourcePoolHandler() {
             try {
+                const resourceTypeSelect = document.getElementById('resourceTypeSelect');
+                const poolQuantityInput = document.getElementById('poolQuantity');
+                
+                if (!resourceTypeSelect || !poolQuantityInput) {
+                    showStatus('Error: UI elements not found', 'error');
+                    return;
+                }
+                
+                const resourceType = resourceTypeSelect.value;
+                const quantity = parseInt(poolQuantityInput.value) || 3;
+                
+                if (quantity < 2 || quantity > 20) {
+                    showStatus('Please enter a quantity between 2 and 20', 'error');
+                    return;
+                }
+                
                 const viewport = await miro.board.viewport.get();
                 const centerX = viewport.x + (viewport.width / 2);
                 const centerY = viewport.y + (viewport.height / 2);
                 
-                const content = poolType === 'unused' ? 'UNUSED POOL' : 'USED POOL';
-                const fillColor = poolType === 'unused' ? 'light_gray' : 'dark_gray';
+                // Determine resource properties
+                let content, value, fillColor;
+                const [type, size] = resourceType.split('-');
                 
-                const pool = await miro.board.createStickyNote({
-                    content: content,
-                    x: centerX,
-                    y: centerY + (poolType === 'unused' ? -100 : 100),
-                    style: { 
-                        fillColor: fillColor,
-                        textAlign: 'center'
-                    },
-                    width: 200,
-                    height: 150
+                if (type === 'barrel') {
+                    switch(size) {
+                        case 'small':
+                            value = document.getElementById('barrelSmall').value;
+                            content = `Small Barrel (${value})`;
+                            fillColor = 'light_yellow';
+                            break;
+                        case 'medium':
+                            value = document.getElementById('barrelMedium').value;
+                            content = `Med Barrel (${value})`;
+                            fillColor = 'yellow';
+                            break;
+                        case 'big':
+                            value = document.getElementById('barrelBig').value;
+                            content = `Big Barrel (${value})`;
+                            fillColor = 'orange';
+                            break;
+                    }
+                } else if (type === 'dig') {
+                    value = document.getElementById('digValue').value;
+                    content = `Dig (${value})`;
+                    fillColor = 'light_green';
+                } else if (type === 'crate') {
+                    value = document.getElementById('crateValue').value;
+                    content = `Crate (${value})`;
+                    fillColor = 'light_blue';
+                }
+                
+                // Create resources in a row
+                const spacing = 250;
+                const startX = centerX - ((quantity - 1) * spacing / 2);
+                const resourceNotes = [];
+                
+                for (let i = 0; i < quantity; i++) {
+                    const resource = await miro.board.createStickyNote({
+                        content: content,
+                        x: startX + (i * spacing),
+                        y: centerY,
+                        style: { fillColor: fillColor }
+                    });
+                    resourceNotes.push(resource);
+                }
+                
+                // Create connectors between resources
+                for (let i = 0; i < resourceNotes.length - 1; i++) {
+                    try {
+                        await miro.board.createConnector({
+                            start: {
+                                item: resourceNotes[i].id,
+                                snapTo: 'right'
+                            },
+                            end: {
+                                item: resourceNotes[i + 1].id,
+                                snapTo: 'left'
+                            },
+                            style: {
+                                strokeColor: '#1976d2',
+                                strokeWidth: 2
+                            }
+                        });
+                    } catch (connectorError) {
+                        console.log('Could not create connector:', connectorError.message);
+                    }
+                }
+                
+                // Create sum note
+                const totalValue = parseInt(value) * quantity;
+                const lastResource = resourceNotes[resourceNotes.length - 1];
+                const sumX = lastResource.x + (lastResource.width || 200) + 100;
+                const sumY = lastResource.y;
+                
+                const sumNote = await miro.board.createStickyNote({
+                    content: totalValue.toString(),
+                    x: sumX,
+                    y: sumY,
+                    style: { fillColor: fillColor }
                 });
                 
-                await miro.board.viewport.zoomTo(pool);
-                showStatus(`Created ${content}`, 'success');
+                // Connect last resource to sum
+                try {
+                    await miro.board.createConnector({
+                        start: {
+                            item: lastResource.id,
+                            snapTo: 'right'
+                        },
+                        end: {
+                            item: sumNote.id,
+                            snapTo: 'left'
+                        },
+                        style: {
+                            strokeColor: '#28a745',
+                            strokeWidth: 3
+                        }
+                    });
+                } catch (connectorError) {
+                    console.log('Could not create sum connector:', connectorError.message);
+                }
+                
+                // Track the calculation relationship
+                const sourceIds = resourceNotes.map(note => note.id);
+                calculatorNotes.set(sumNote.id, {
+                    operation: 'sum',
+                    sourceIds: sourceIds,
+                    name: `POOL_${type.toUpperCase()}_${Date.now().toString().slice(-6)}`,
+                    created: Date.now()
+                });
+                
+                await saveCalculatorData();
+                updateRelationshipsCount();
+                
+                // Zoom to show the entire pool
+                const allItems = [...resourceNotes, sumNote];
+                await miro.board.viewport.zoomTo(allItems);
+                
+                showStatus(`Created pool: ${quantity}x ${content} = ${totalValue}`, 'success');
                 
             } catch (error) {
-                console.error('Error creating pool:', error);
-                showStatus('Error creating pool: ' + error.message, 'error');
+                console.error('Error creating resource pool:', error);
+                showStatus('Error creating resource pool: ' + error.message, 'error');
             }
         }
 
