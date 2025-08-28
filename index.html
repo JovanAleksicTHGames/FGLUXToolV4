@@ -590,12 +590,35 @@
                 const newX = lastItem.x + (lastItem.width || 200) + 50;
                 const newY = lastItem.y;
 
+                // Determine color based on operation and parent colors
+                let fillColor;
+                if (operation === 'sum') {
+                    // For sums, inherit color from parents - find most common parent color
+                    const parentColors = validItems.map(item => item.style?.fillColor).filter(color => color);
+                    if (parentColors.length > 0) {
+                        // Count color frequencies
+                        const colorCounts = {};
+                        parentColors.forEach(color => {
+                            colorCounts[color] = (colorCounts[color] || 0) + 1;
+                        });
+                        // Find most common color
+                        fillColor = Object.keys(colorCounts).reduce((a, b) => 
+                            colorCounts[a] > colorCounts[b] ? a : b
+                        );
+                    } else {
+                        fillColor = 'light_yellow'; // fallback
+                    }
+                } else {
+                    // Products are always dark green
+                    fillColor = 'dark_green';
+                }
+
                 const calculatorNote = await miro.board.createStickyNote({
                     content: result.toString(),
                     x: newX,
                     y: newY,
                     style: { 
-                        fillColor: operation === 'sum' ? 'light_yellow' : 'light_green' 
+                        fillColor: fillColor
                     }
                 });
 
