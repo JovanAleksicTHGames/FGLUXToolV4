@@ -5,8 +5,21 @@
     <title>Miro Resource Calculator</title>
     <script src="https://miro.com/app/static/sdk/v2/miro.js?v=4"></script>
     <style>
-        body { font-family: Arial, sans-serif; padding: 15px; margin: 0; background: #f8f9fa; }
-        .container { max-width: 280px; }
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 0; 
+            margin: 0; 
+            background: #f8f9fa; 
+            height: 100vh;
+            overflow: hidden;
+        }
+        .container { 
+            max-width: 280px; 
+            height: 100vh;
+            overflow-y: auto;
+            padding: 15px;
+            box-sizing: border-box;
+        }
         h3 { margin: 0 0 15px 0; font-size: 16px; color: #333; }
         
         .section { 
