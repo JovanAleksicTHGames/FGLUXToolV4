@@ -364,6 +364,7 @@
     <script>
         let isInitialized = false;
         let calculatorNotes = new Map();
+        let spawnedResources = new Map(); // Track spawned resources by type
         let lastUIUpdate = 0;
         let lastCalculatorCheck = 0;
         let currentRenamingId = null;
@@ -395,6 +396,7 @@
                 
                 await setupUI();
                 await loadCalculatorData();
+                await loadSpawnedResourcesData();
                 updateRelationshipsCount();
                 
                 isInitialized = true;
@@ -428,6 +430,19 @@
                 if (createBarrelBig) createBarrelBig.addEventListener('click', () => createResource('barrel', 'big'));
                 if (createDig) createDig.addEventListener('click', () => createResource('dig', 'standard'));
                 if (createCrate) createCrate.addEventListener('click', () => createResource('crate', 'standard'));
+                
+                // Global variable listeners for dynamic updates
+                const barrelSmallInput = document.getElementById('barrelSmall');
+                const barrelMediumInput = document.getElementById('barrelMedium');
+                const barrelBigInput = document.getElementById('barrelBig');
+                const digValueInput = document.getElementById('digValue');
+                const crateValueInput = document.getElementById('crateValue');
+                
+                if (barrelSmallInput) barrelSmallInput.addEventListener('input', () => updateResourceValues('barrel-small'));
+                if (barrelMediumInput) barrelMediumInput.addEventListener('input', () => updateResourceValues('barrel-medium'));
+                if (barrelBigInput) barrelBigInput.addEventListener('input', () => updateResourceValues('barrel-big'));
+                if (digValueInput) digValueInput.addEventListener('input', () => updateResourceValues('dig'));
+                if (crateValueInput) crateValueInput.addEventListener('input', () => updateResourceValues('crate'));
                 
                 // Resource pool spawner button
                 const createResourcePoolBtn = document.getElementById('createResourcePool');
@@ -497,18 +512,19 @@
             }
         }
 
-        // Resource creation
+        // Resource creation with tracking
         async function createResource(type, size) {
             try {
                 const viewport = await miro.board.viewport.get();
                 const centerX = viewport.x + (viewport.width / 2);
                 const centerY = viewport.y + (viewport.height / 2);
                 
-                let content, fillColor;
+                let content, fillColor, resourceType;
                 
                 if (type === 'barrel') {
                     const value = getGlobalValue(type, size);
                     content = `${size.charAt(0).toUpperCase() + size.slice(1)} Barrel (${value})`;
+                    resourceType = `barrel-${size}`;
                     
                     switch(size) {
                         case 'small': fillColor = 'light_yellow'; break;
@@ -519,10 +535,12 @@
                     const value = document.getElementById('digValue').value;
                     content = `Dig (${value})`;
                     fillColor = 'light_green';
+                    resourceType = 'dig';
                 } else if (type === 'crate') {
                     const value = document.getElementById('crateValue').value;
                     content = `Crate (${value})`;
                     fillColor = 'light_blue';
+                    resourceType = 'crate';
                 }
                 
                 const resource = await miro.board.createStickyNote({
@@ -531,6 +549,13 @@
                     y: centerY + (Math.random() - 0.5) * 100,
                     style: { fillColor: fillColor }
                 });
+                
+                // Track the spawned resource
+                if (!spawnedResources.has(resourceType)) {
+                    spawnedResources.set(resourceType, []);
+                }
+                spawnedResources.get(resourceType).push(resource.id);
+                await saveSpawnedResourcesData();
                 
                 await miro.board.viewport.zoomTo(resource);
                 showStatus(`Created ${content}`, 'success');
@@ -609,6 +634,12 @@
                         style: { fillColor: fillColor }
                     });
                     resourceNotes.push(resource);
+                    
+                    // Track the spawned resource
+                    if (!spawnedResources.has(resourceType)) {
+                        spawnedResources.set(resourceType, []);
+                    }
+                    spawnedResources.get(resourceType).push(resource.id);
                 }
                 
                 // Create connectors between resources
@@ -675,6 +706,7 @@
                     created: Date.now()
                 });
                 
+                await saveSpawnedResourcesData();
                 await saveCalculatorData();
                 updateRelationshipsCount();
                 
@@ -690,7 +722,125 @@
             }
         }
 
-        // Get global variable values
+        // Update resource values when global variables change
+        async function updateResourceValues(resourceType) {
+            try {
+                const resourceIds = spawnedResources.get(resourceType);
+                if (!resourceIds || resourceIds.length === 0) {
+                    return; // No resources of this type to update
+                }
+                
+                // Get the new value and content template
+                let newValue, newContent, contentPattern;
+                switch(resourceType) {
+                    case 'barrel-small':
+                        newValue = document.getElementById('barrelSmall').value;
+                        newContent = `Small Barrel (${newValue})`;
+                        contentPattern = /Small Barrel \(\d+\)/;
+                        break;
+                    case 'barrel-medium':
+                        newValue = document.getElementById('barrelMedium').value;
+                        newContent = `Med Barrel (${newValue})`;
+                        contentPattern = /Med Barrel \(\d+\)/;
+                        break;
+                    case 'barrel-big':
+                        newValue = document.getElementById('barrelBig').value;
+                        newContent = `Big Barrel (${newValue})`;
+                        contentPattern = /Big Barrel \(\d+\)/;
+                        break;
+                    case 'dig':
+                        newValue = document.getElementById('digValue').value;
+                        newContent = `Dig (${newValue})`;
+                        contentPattern = /Dig \(\d+\)/;
+                        break;
+                    case 'crate':
+                        newValue = document.getElementById('crateValue').value;
+                        newContent = `Crate (${newValue})`;
+                        contentPattern = /Crate \(\d+\)/;
+                        break;
+                }
+                
+                let updatedCount = 0;
+                const validIds = [];
+                
+                // Update existing resources
+                for (const resourceId of resourceIds) {
+                    try {
+                        const resource = await miro.board.getById(resourceId);
+                        if (resource && resource.type === 'sticky_note') {
+                            // Check if this resource matches the pattern (handles manually edited notes)
+                            if (resource.content && contentPattern.test(resource.content.replace(/<[^>]*>/g, '').trim())) {
+                                resource.content = newContent;
+                                await resource.sync();
+                                updatedCount++;
+                            }
+                            validIds.push(resourceId);
+                        }
+                    } catch (error) {
+                        // Resource no longer exists, don't add to validIds
+                    }
+                }
+                
+                // Update the tracking with only valid IDs
+                spawnedResources.set(resourceType, validIds);
+                await saveSpawnedResourcesData();
+                
+                // Trigger recalculation of any sums that include these resources
+                await recheckAllCalculatorNotes();
+                
+                if (updatedCount > 0) {
+                    showStatus(`Updated ${updatedCount} ${resourceType.replace('-', ' ')} resources to ${newValue}`, 'success');
+                }
+                
+            } catch (error) {
+                console.error('Error updating resource values:', error);
+                showStatus('Error updating resources: ' + error.message, 'error');
+            }
+        }
+
+        // Save and load spawned resources data
+        async function saveSpawnedResourcesData() {
+            try {
+                const data = Object.fromEntries(spawnedResources);
+                await miro.board.setAppData('spawnedResources', data);
+            } catch (error) {
+                console.error('Error saving spawned resources data:', error);
+            }
+        }
+
+        async function loadSpawnedResourcesData() {
+            try {
+                const data = await miro.board.getAppData('spawnedResources');
+                if (data) {
+                    spawnedResources = new Map(Object.entries(data));
+                    // Clean up any invalid resource IDs
+                    await cleanupSpawnedResources();
+                } else {
+                    spawnedResources = new Map();
+                }
+            } catch (error) {
+                console.error('Error loading spawned resources data:', error);
+                spawnedResources = new Map();
+            }
+        }
+
+        async function cleanupSpawnedResources() {
+            for (const [resourceType, resourceIds] of spawnedResources.entries()) {
+                const validIds = [];
+                for (const resourceId of resourceIds) {
+                    try {
+                        const resource = await miro.board.getById(resourceId);
+                        if (resource && resource.type === 'sticky_note') {
+                            validIds.push(resourceId);
+                        }
+                    } catch (error) {
+                        // Resource no longer exists
+                    }
+                }
+                spawnedResources.set(resourceType, validIds);
+            }
+            await saveSpawnedResourcesData();
+        }
         function getGlobalValue(type, size) {
             if (type === 'barrel') {
                 switch(size) {
