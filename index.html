@@ -638,6 +638,9 @@
                     return;
                 }
                 
+                // Show progress
+                showStatus('Creating resource pool...', 'success');
+                
                 const viewport = await miro.board.viewport.get();
                 const centerX = viewport.x + (viewport.width / 2);
                 const centerY = viewport.y + (viewport.height / 2);
@@ -681,46 +684,77 @@
                 const startX = centerX - ((quantity - 1) * spacing / 2);
                 const resourceNotes = [];
                 
-                // Create only the requested quantity of resources for this pool
+                // Create resources with delays to avoid rate limiting
                 for (let i = 0; i < quantity; i++) {
-                    const resource = await miro.board.createStickyNote({
-                        content: content,
-                        x: startX + (i * spacing),
-                        y: centerY,
-                        style: { fillColor: fillColor }
-                    });
-                    resourceNotes.push(resource);
-                    
-                    // Track each resource individually for global updates
-                    if (!spawnedResources.has(resourceType)) {
-                        spawnedResources.set(resourceType, []);
+                    try {
+                        const resource = await miro.board.createStickyNote({
+                            content: content,
+                            x: startX + (i * spacing),
+                            y: centerY,
+                            style: { fillColor: fillColor }
+                        });
+                        resourceNotes.push(resource);
+                        
+                        // Track each resource individually for global updates
+                        if (!spawnedResources.has(resourceType)) {
+                            spawnedResources.set(resourceType, []);
+                        }
+                        spawnedResources.get(resourceType).push(resource.id);
+                        
+                        // Small delay to avoid rate limiting
+                        if (i < quantity - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 50));
+                        }
+                    } catch (error) {
+                        console.error(`Error creating resource ${i + 1}:`, error);
+                        showStatus(`Error creating resource ${i + 1}: ${error.message}`, 'error');
+                        return;
                     }
-                    spawnedResources.get(resourceType).push(resource.id);
                 }
+                
+                // Small delay before creating sum
+                await new Promise(resolve => setTimeout(resolve, 100));
                 
                 const totalValue = parseInt(value) * quantity;
                 const lastResource = resourceNotes[resourceNotes.length - 1];
                 const sumX = lastResource.x + (lastResource.width || 200) + 100;
                 const sumY = lastResource.y;
                 
-                const sumNote = await miro.board.createStickyNote({
-                    content: totalValue.toString(),
-                    x: sumX,
-                    y: sumY,
-                    style: { fillColor: fillColor }
-                });
+                let sumNote;
+                try {
+                    sumNote = await miro.board.createStickyNote({
+                        content: totalValue.toString(),
+                        x: sumX,
+                        y: sumY,
+                        style: { fillColor: fillColor }
+                    });
+                } catch (error) {
+                    console.error('Error creating sum note:', error);
+                    showStatus('Error creating sum note: ' + error.message, 'error');
+                    return;
+                }
+                
+                // Small delay before creating path note
+                await new Promise(resolve => setTimeout(resolve, 100));
                 
                 const pathMultiplier = getPathMultiplier(pathType);
                 const pathValue = Math.round(totalValue * pathMultiplier);
                 const pathX = sumX + (sumNote.width || 200) + 100;
                 const pathY = sumY;
                 
-                const pathNote = await miro.board.createStickyNote({
-                    content: `${pathType.toUpperCase()}: ${pathValue} (${(pathMultiplier * 100).toFixed(0)}%)`,
-                    x: pathX,
-                    y: pathY,
-                    style: { fillColor: 'light_gray' }
-                });
+                let pathNote;
+                try {
+                    pathNote = await miro.board.createStickyNote({
+                        content: `${pathType.toUpperCase()}: ${pathValue} (${(pathMultiplier * 100).toFixed(0)}%)`,
+                        x: pathX,
+                        y: pathY,
+                        style: { fillColor: 'light_gray' }
+                    });
+                } catch (error) {
+                    console.error('Error creating path note:', error);
+                    showStatus('Error creating path note: ' + error.message, 'error');
+                    return;
+                }
                 
                 // Track the sum calculation for THIS specific pool only
                 const sourceIds = resourceNotes.map(note => note.id);
@@ -741,6 +775,8 @@
                     created: Date.now()
                 });
                 
+                // Save data with delay
+                await new Promise(resolve => setTimeout(resolve, 50));
                 await saveSpawnedResourcesData();
                 await saveCalculatorData();
                 await savePathCalculationsData();
