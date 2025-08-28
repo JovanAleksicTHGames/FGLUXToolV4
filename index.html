@@ -1,4 +1,51 @@
-<!DOCTYPE html>
+async function recheckAllCalculatorNotes() {
+            try {
+                await verifyAndCleanupRelationships();
+                for (const [resultId, calcData] of calculatorNotes.entries()) {
+                    await recalculateResult(resultId, calcData);
+                }
+            } catch (error) {
+                console.error('Error in recheckAllCalculatorNotes:', error);
+            }
+        }
+
+        async function recheckAllCalculatorNotes() {
+            try {
+                await verifyAndCleanupRelationships();
+                for (const [resultId, calcData] of calculatorNotes.entries()) {
+                    await recalculateResult(resultId, calcData);
+                }
+            } catch (error) {
+                console.error('Error in recheckAllCalculatorNotes:', error);
+            }
+        }
+
+        async function recheckAllPathCalculations() {
+            try {
+                for (const [pathNoteId, pathData] of pathCalculations.entries()) {
+                    try {
+                        // Get the source sum value
+                        const sourceNote = await miro.board.getById(pathData.sourceId);
+                        if (sourceNote && sourceNote.content) {
+                            const sourceValue = parseInt(sourceNote.content.replace(/<[^>]*>/g, '').trim());
+                            const pathMultiplier = getPathMultiplier(pathData.pathType);
+                            const pathValue = Math.round(sourceValue * pathMultiplier);
+                            
+                            // Update the path note
+                            const pathNote = await miro.board.getById(pathNoteId);
+                            if (pathNote) {
+                                pathNote.content = `${pathData.pathType.toUpperCase()}: ${pathValue} (${(pathMultiplier * 100).toFixed(0)}%)`;
+                                await pathNote.sync();
+                            }
+                        }
+                    } catch (error) {
+                        // Path note or source may have been deleted
+                    }
+                }
+            } catch (error) {
+                console.error('Error in recheckAllPathCalculations:', error);
+            }
+        }<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -53,6 +100,34 @@
         }
         
         .globals-grid input {
+            padding: 4px 6px;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+            font-size: 11px;
+            text-align: center;
+        }
+        
+        /* Player Profiles */
+        .profile-help {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+        
+        .profiles-grid {
+            display: grid;
+            grid-template-columns: 1fr 60px;
+            gap: 6px;
+            align-items: center;
+        }
+        
+        .profiles-grid label {
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .profile-input {
             padding: 4px 6px;
             border: 1px solid #ced4da;
             border-radius: 3px;
@@ -293,6 +368,24 @@
             </div>
         </div>
         
+        <!-- Player Profiles -->
+        <div class="section">
+            <div class="section-title">Player Profiles</div>
+            <div class="profile-help">Discovery rates (0.0 to 1.0): how likely players find resources on each path type</div>
+            <div class="profiles-grid">
+                <label>Main Path:</label>
+                <input type="number" id="mainPath" value="1.0" min="0" max="1" step="0.1" class="profile-input">
+                <label>Obvious Path:</label>
+                <input type="number" id="obviousPath" value="0.8" min="0" max="1" step="0.1" class="profile-input">
+                <label>Obscured Path:</label>
+                <input type="number" id="obscuredPath" value="0.5" min="0" max="1" step="0.1" class="profile-input">
+                <label>Hidden Path:</label>
+                <input type="number" id="hiddenPath" value="0.2" min="0" max="1" step="0.1" class="profile-input">
+                <label>Everything:</label>
+                <input type="number" id="everythingPath" value="1.0" min="0" max="1" step="0.1" class="profile-input">
+            </div>
+        </div>
+        
         <!-- Calculator -->
         <div class="section">
             <div class="section-title">Calculator</div>
@@ -323,6 +416,13 @@
                     <option value="barrel-big">Big Barrel</option>
                     <option value="dig">Dig</option>
                     <option value="crate">Crate</option>
+                </select>
+                <select id="pathTypeSelect" class="pool-select">
+                    <option value="main">Main Path</option>
+                    <option value="obvious">Obvious Path</option>
+                    <option value="obscured">Obscured Path</option>
+                    <option value="hidden">Hidden Path</option>
+                    <option value="everything">Everything</option>
                 </select>
                 <input type="number" id="poolQuantity" class="pool-input" min="2" max="20" value="3" placeholder="Quantity">
             </div>
@@ -365,6 +465,7 @@
         let isInitialized = false;
         let calculatorNotes = new Map();
         let spawnedResources = new Map(); // Track spawned resources by type
+        let pathCalculations = new Map(); // Track path calculations by path type
         let lastUIUpdate = 0;
         let lastCalculatorCheck = 0;
         let currentRenamingId = null;
@@ -397,6 +498,7 @@
                 await setupUI();
                 await loadCalculatorData();
                 await loadSpawnedResourcesData();
+                await loadPathCalculationsData();
                 updateRelationshipsCount();
                 
                 isInitialized = true;
@@ -443,6 +545,19 @@
                 if (barrelBigInput) barrelBigInput.addEventListener('input', () => updateResourceValues('barrel-big'));
                 if (digValueInput) digValueInput.addEventListener('input', () => updateResourceValues('dig'));
                 if (crateValueInput) crateValueInput.addEventListener('input', () => updateResourceValues('crate'));
+                
+                // Player profile listeners for path calculations
+                const mainPathInput = document.getElementById('mainPath');
+                const obviousPathInput = document.getElementById('obviousPath');
+                const obscuredPathInput = document.getElementById('obscuredPath');
+                const hiddenPathInput = document.getElementById('hiddenPath');
+                const everythingPathInput = document.getElementById('everythingPath');
+                
+                if (mainPathInput) mainPathInput.addEventListener('input', (e) => clampAndUpdatePath(e, 'main'));
+                if (obviousPathInput) obviousPathInput.addEventListener('input', (e) => clampAndUpdatePath(e, 'obvious'));
+                if (obscuredPathInput) obscuredPathInput.addEventListener('input', (e) => clampAndUpdatePath(e, 'obscured'));
+                if (hiddenPathInput) hiddenPathInput.addEventListener('input', (e) => clampAndUpdatePath(e, 'hidden'));
+                if (everythingPathInput) everythingPathInput.addEventListener('input', (e) => clampAndUpdatePath(e, 'everything'));
                 
                 // Resource pool spawner button
                 const createResourcePoolBtn = document.getElementById('createResourcePool');
@@ -566,18 +681,20 @@
             }
         }
 
-        // Resource pool creation
+        // Resource pool creation with path calculation
         async function createResourcePoolHandler() {
             try {
                 const resourceTypeSelect = document.getElementById('resourceTypeSelect');
+                const pathTypeSelect = document.getElementById('pathTypeSelect');
                 const poolQuantityInput = document.getElementById('poolQuantity');
                 
-                if (!resourceTypeSelect || !poolQuantityInput) {
+                if (!resourceTypeSelect || !pathTypeSelect || !poolQuantityInput) {
                     showStatus('Error: UI elements not found', 'error');
                     return;
                 }
                 
                 const resourceType = resourceTypeSelect.value;
+                const pathType = pathTypeSelect.value;
                 const quantity = parseInt(poolQuantityInput.value) || 3;
                 
                 if (quantity < 2 || quantity > 20) {
@@ -610,6 +727,10 @@
                             content = `Big Barrel (${value})`;
                             fillColor = 'orange';
                             break;
+                        default:
+                            value = '5';
+                            content = 'Barrel (5)';
+                            fillColor = 'light_yellow';
                     }
                 } else if (type === 'dig') {
                     value = document.getElementById('digValue').value;
@@ -655,7 +776,21 @@
                     style: { fillColor: fillColor }
                 });
                 
-                // Track the calculation relationship
+                // Calculate path value based on player profile
+                const pathMultiplier = getPathMultiplier(pathType);
+                const pathValue = Math.round(totalValue * pathMultiplier);
+                const pathX = sumX + (sumNote.width || 200) + 100;
+                const pathY = sumY;
+                
+                // Create path calculation note
+                const pathNote = await miro.board.createStickyNote({
+                    content: `${pathType.toUpperCase()}: ${pathValue} (${(pathMultiplier * 100).toFixed(0)}%)`,
+                    x: pathX,
+                    y: pathY,
+                    style: { fillColor: 'light_gray' }
+                });
+                
+                // Track the regular sum calculation
                 const sourceIds = resourceNotes.map(note => note.id);
                 calculatorNotes.set(sumNote.id, {
                     operation: 'sum',
@@ -664,19 +799,122 @@
                     created: Date.now()
                 });
                 
+                // Track the path calculation
+                const pathKey = `${pathType}-${Date.now().toString().slice(-6)}`;
+                pathCalculations.set(pathNote.id, {
+                    pathType: pathType,
+                    sourceId: sumNote.id,
+                    resourceIds: sourceIds,
+                    name: pathKey,
+                    created: Date.now()
+                });
+                
                 await saveSpawnedResourcesData();
                 await saveCalculatorData();
+                await savePathCalculationsData();
                 updateRelationshipsCount();
                 
                 // Zoom to show the entire pool
-                const allItems = [...resourceNotes, sumNote];
+                const allItems = [...resourceNotes, sumNote, pathNote];
                 await miro.board.viewport.zoomTo(allItems);
                 
-                showStatus(`Created pool: ${quantity}x ${content} = ${totalValue}`, 'success');
+                showStatus(`Created ${pathType} path: ${quantity}x ${content} = ${totalValue} → ${pathValue}`, 'success');
                 
             } catch (error) {
                 console.error('Error creating resource pool:', error);
                 showStatus('Error creating resource pool: ' + error.message, 'error');
+            }
+        }
+
+        // Clamp player profile values and update path calculations
+        function clampAndUpdatePath(event, pathType) {
+            const input = event.target;
+            let value = parseFloat(input.value);
+            
+            // Clamp between 0 and 1
+            if (isNaN(value)) value = 0;
+            if (value < 0) value = 0;
+            if (value > 1) value = 1;
+            
+            input.value = value.toFixed(1);
+            
+            // Update all path calculations of this type
+            updatePathCalculations(pathType);
+        }
+
+        // Get path multiplier from player profiles
+        function getPathMultiplier(pathType) {
+            const inputs = {
+                'main': document.getElementById('mainPath'),
+                'obvious': document.getElementById('obviousPath'),
+                'obscured': document.getElementById('obscuredPath'),
+                'hidden': document.getElementById('hiddenPath'),
+                'everything': document.getElementById('everythingPath')
+            };
+            
+            const input = inputs[pathType];
+            return input ? parseFloat(input.value) || 0 : 0;
+        }
+
+        // Update path calculations when player profiles change
+        async function updatePathCalculations(pathType) {
+            try {
+                const pathMultiplier = getPathMultiplier(pathType);
+                let updatedCount = 0;
+                
+                for (const [pathNoteId, pathData] of pathCalculations.entries()) {
+                    if (pathData.pathType === pathType) {
+                        try {
+                            // Get the source sum value
+                            const sourceNote = await miro.board.getById(pathData.sourceId);
+                            if (sourceNote && sourceNote.content) {
+                                const sourceValue = parseInt(sourceNote.content.replace(/<[^>]*>/g, '').trim());
+                                const pathValue = Math.round(sourceValue * pathMultiplier);
+                                
+                                // Update the path note
+                                const pathNote = await miro.board.getById(pathNoteId);
+                                if (pathNote) {
+                                    pathNote.content = `${pathType.toUpperCase()}: ${pathValue} (${(pathMultiplier * 100).toFixed(0)}%)`;
+                                    await pathNote.sync();
+                                    updatedCount++;
+                                }
+                            }
+                        } catch (error) {
+                            // Path note may have been deleted
+                        }
+                    }
+                }
+                
+                if (updatedCount > 0) {
+                    showStatus(`Updated ${updatedCount} ${pathType} path calculations`, 'success');
+                }
+                
+            } catch (error) {
+                console.error('Error updating path calculations:', error);
+            }
+        }
+
+        // Save and load path calculations data
+        async function savePathCalculationsData() {
+            try {
+                const data = Object.fromEntries(pathCalculations);
+                await miro.board.setAppData('pathCalculations', data);
+            } catch (error) {
+                console.error('Error saving path calculations data:', error);
+            }
+        }
+
+        async function loadPathCalculationsData() {
+            try {
+                const data = await miro.board.getAppData('pathCalculations');
+                if (data) {
+                    pathCalculations = new Map(Object.entries(data));
+                } else {
+                    pathCalculations = new Map();
+                }
+            } catch (error) {
+                console.error('Error loading path calculations data:', error);
+                pathCalculations = new Map();
             }
         }
 
@@ -690,32 +928,40 @@
                 
                 // Get the new value and content template
                 let newValue, newContent, contentPattern;
+                const barrelSmallInput = document.getElementById('barrelSmall');
+                const barrelMediumInput = document.getElementById('barrelMedium');
+                const barrelBigInput = document.getElementById('barrelBig');
+                const digValueInput = document.getElementById('digValue');
+                const crateValueInput = document.getElementById('crateValue');
+                
                 switch(resourceType) {
                     case 'barrel-small':
-                        newValue = document.getElementById('barrelSmall').value;
+                        newValue = barrelSmallInput ? barrelSmallInput.value : '5';
                         newContent = `Small Barrel (${newValue})`;
                         contentPattern = /Small Barrel \(\d+\)/;
                         break;
                     case 'barrel-medium':
-                        newValue = document.getElementById('barrelMedium').value;
+                        newValue = barrelMediumInput ? barrelMediumInput.value : '10';
                         newContent = `Med Barrel (${newValue})`;
                         contentPattern = /Med Barrel \(\d+\)/;
                         break;
                     case 'barrel-big':
-                        newValue = document.getElementById('barrelBig').value;
+                        newValue = barrelBigInput ? barrelBigInput.value : '20';
                         newContent = `Big Barrel (${newValue})`;
                         contentPattern = /Big Barrel \(\d+\)/;
                         break;
                     case 'dig':
-                        newValue = document.getElementById('digValue').value;
+                        newValue = digValueInput ? digValueInput.value : '3';
                         newContent = `Dig (${newValue})`;
                         contentPattern = /Dig \(\d+\)/;
                         break;
                     case 'crate':
-                        newValue = document.getElementById('crateValue').value;
+                        newValue = crateValueInput ? crateValueInput.value : '15';
                         newContent = `Crate (${newValue})`;
                         contentPattern = /Crate \(\d+\)/;
                         break;
+                    default:
+                        return;
                 }
                 
                 let updatedCount = 0;
@@ -745,6 +991,9 @@
                 
                 // Trigger recalculation of any sums that include these resources
                 await recheckAllCalculatorNotes();
+                
+                // Update any path calculations that depend on updated sums
+                await recheckAllPathCalculations();
                 
                 if (updatedCount > 0) {
                     showStatus(`Updated ${updatedCount} ${resourceType.replace('-', ' ')} resources to ${newValue}`, 'success');
@@ -1341,14 +1590,30 @@
             }
         }
 
-        async function recheckAllCalculatorNotes() {
+        async function recheckAllPathCalculations() {
             try {
-                await verifyAndCleanupRelationships();
-                for (const [resultId, calcData] of calculatorNotes.entries()) {
-                    await recalculateResult(resultId, calcData);
+                for (const [pathNoteId, pathData] of pathCalculations.entries()) {
+                    try {
+                        // Get the source sum value
+                        const sourceNote = await miro.board.getById(pathData.sourceId);
+                        if (sourceNote && sourceNote.content) {
+                            const sourceValue = parseInt(sourceNote.content.replace(/<[^>]*>/g, '').trim());
+                            const pathMultiplier = getPathMultiplier(pathData.pathType);
+                            const pathValue = Math.round(sourceValue * pathMultiplier);
+                            
+                            // Update the path note
+                            const pathNote = await miro.board.getById(pathNoteId);
+                            if (pathNote) {
+                                pathNote.content = `${pathData.pathType.toUpperCase()}: ${pathValue} (${(pathMultiplier * 100).toFixed(0)}%)`;
+                                await pathNote.sync();
+                            }
+                        }
+                    } catch (error) {
+                        // Path note or source may have been deleted
+                    }
                 }
             } catch (error) {
-                console.error('Error in recheckAllCalculatorNotes:', error);
+                console.error('Error in recheckAllPathCalculations:', error);
             }
         }
 
