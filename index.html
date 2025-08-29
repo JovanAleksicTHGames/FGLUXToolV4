@@ -380,6 +380,12 @@
 
         function setupUI() {
             try {
+                // Wait for DOM to be fully ready
+                if (document.readyState !== 'complete') {
+                    setTimeout(setupUI, 100);
+                    return;
+                }
+
                 const sumBtn = document.getElementById('sumBtn');
                 const productBtn = document.getElementById('productBtn');
                 const addToRelationshipBtn = document.getElementById('addToRelationshipBtn');
@@ -443,14 +449,14 @@
                 if (cancelRename) cancelRename.addEventListener('click', cancelRenameHandler);
                 
                 try {
-                    miro.board.ui.on('selection:update', () => {
-                        throttledUpdateUI();
-                    });
+                    if (typeof miro !== 'undefined' && miro.board && miro.board.ui) {
+                        miro.board.ui.on('selection:update', () => {
+                            throttledUpdateUI();
+                        });
+                    }
                 } catch (error) {
                     console.log('selection:update listener failed:', error);
                 }
-                
-                // Remove items:update listener - not supported in SDK v2
                 
                 setTimeout(throttledUpdateUI, 1000);
                 
@@ -1157,14 +1163,22 @@
             } else {
                 content.innerHTML = html;
                 
-                // Add event listeners for the dynamically created buttons
+                // Remove any existing event listeners to prevent duplicates
                 const relationshipsContent = document.getElementById('relationshipsContent');
                 if (relationshipsContent) {
-                    relationshipsContent.addEventListener('click', function(event) {
+                    // Clone the node to remove all event listeners
+                    const newContent = relationshipsContent.cloneNode(true);
+                    relationshipsContent.parentNode.replaceChild(newContent, relationshipsContent);
+                    
+                    // Add fresh event listener
+                    newContent.addEventListener('click', function(event) {
                         const target = event.target;
                         const resultId = target.getAttribute('data-result-id');
                         
                         if (!resultId) return;
+                        
+                        event.preventDefault();
+                        event.stopPropagation();
                         
                         if (target.classList.contains('goto-btn') || target.classList.contains('go-to-result')) {
                             goToResultNote(resultId);
@@ -1512,10 +1526,42 @@
             }
         }
 
+        async function init() {
+            if (isInitialized) return;
+            
+            try {
+                // Ensure document is ready
+                if (document.readyState === 'loading') {
+                    setTimeout(init, 100);
+                    return;
+                }
+                
+                if (typeof miro === 'undefined') {
+                    setTimeout(init, 100);
+                    return;
+                }
+                
+                setupUI();
+                await loadCalculatorData();
+                await loadSpawnedResourcesData();
+                updateRelationshipsCount();
+                
+                isInitialized = true;
+                
+            } catch (error) {
+                console.error('Init error:', error);
+                setTimeout(init, 500);
+            }
+        }
+
+        // Ensure initialization happens after everything is loaded
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
+        } else if (document.readyState === 'interactive') {
+            document.addEventListener('DOMContentLoaded', init);
         } else {
-            init();
+            // Document is already complete
+            setTimeout(init, 100);
         }
     </script>
 </body>
