@@ -450,13 +450,7 @@
                     console.log('selection:update listener failed:', error);
                 }
                 
-                try {
-                    miro.board.ui.on('items:update', (event) => {
-                        throttledHandleItemsUpdate(event);
-                    });
-                } catch (error) {
-                    console.log('items:update listener failed:', error);
-                }
+                // Remove items:update listener - not supported in SDK v2
                 
                 setTimeout(throttledUpdateUI, 1000);
                 
@@ -989,14 +983,6 @@
             }
         }
 
-        function throttledHandleItemsUpdate(event) {
-            const now = Date.now();
-            if (now - lastCalculatorCheck > 2000) {
-                lastCalculatorCheck = now;
-                handleItemsUpdate(event);
-            }
-        }
-
         function throttledRecheckAllCalculatorNotes() {
             const now = Date.now();
             if (now - lastCalculatorCheck > 5000) {
@@ -1132,10 +1118,10 @@
                         html += `
                             <div class="relationship-item ${calcData.operation}">
                                 <div class="relationship-header">
-                                    <span style="cursor:pointer" onclick="goToResultNote('${resultId}')" title="Click to go to result note">
+                                    <span style="cursor:pointer" data-result-id="${resultId}" class="go-to-result" title="Click to go to result note">
                                         ${calcData.operation.toUpperCase()}: ${resultContent}
                                     </span>
-                                    <span class="relationship-name" onclick="startRename('${resultId}')" title="Click to rename">
+                                    <span class="relationship-name" data-result-id="${resultId}" class="rename-relationship" title="Click to rename">
                                         ${calcData.name || 'Unnamed'}
                                     </span>
                                 </div>
@@ -1143,16 +1129,16 @@
                                     Sources: ${sourceText}
                                 </div>
                                 <div class="relationship-actions">
-                                    <button class="action-btn goto-btn" onclick="goToResultNote('${resultId}')" title="Go to result note">
+                                    <button class="action-btn goto-btn" data-result-id="${resultId}" title="Go to result note">
                                         Go
                                     </button>
-                                    <button class="action-btn select-parents-btn" onclick="selectParents('${resultId}')" title="Select all parent notes">
+                                    <button class="action-btn select-parents-btn" data-result-id="${resultId}" title="Select all parent notes">
                                         Parents
                                     </button>
-                                    <button class="action-btn rename-btn" onclick="startRename('${resultId}')" title="Rename relationship">
+                                    <button class="action-btn rename-btn" data-result-id="${resultId}" title="Rename relationship">
                                         Rename
                                     </button>
-                                    <button class="action-btn delete-btn" onclick="deleteRelationship('${resultId}')" title="Delete relationship and all related notes">
+                                    <button class="action-btn delete-btn" data-result-id="${resultId}" title="Delete relationship and all related notes">
                                         Delete
                                     </button>
                                 </div>
@@ -1170,6 +1156,27 @@
                 content.innerHTML = 'No valid calculator relationships found';
             } else {
                 content.innerHTML = html;
+                
+                // Add event listeners for the dynamically created buttons
+                const relationshipsContent = document.getElementById('relationshipsContent');
+                if (relationshipsContent) {
+                    relationshipsContent.addEventListener('click', function(event) {
+                        const target = event.target;
+                        const resultId = target.getAttribute('data-result-id');
+                        
+                        if (!resultId) return;
+                        
+                        if (target.classList.contains('goto-btn') || target.classList.contains('go-to-result')) {
+                            goToResultNote(resultId);
+                        } else if (target.classList.contains('select-parents-btn')) {
+                            selectParents(resultId);
+                        } else if (target.classList.contains('rename-btn') || target.classList.contains('rename-relationship')) {
+                            startRename(resultId);
+                        } else if (target.classList.contains('delete-btn')) {
+                            deleteRelationship(resultId);
+                        }
+                    });
+                }
             }
         }
 
