@@ -845,7 +845,7 @@
                     content: `${pathType.toUpperCase()}: ${pathValue} (${(pathMultiplier * 100).toFixed(0)}%)`,
                     x: pathX,
                     y: pathY,
-                    style: { fillColor: 'light_gray' }
+                    style: { fillColor: 'gray' }
                 });
                 
                 const sourceIds = resourceNotes.map(note => note.id);
@@ -868,6 +868,12 @@
                 await saveCalculatorData();
                 await savePathCalculationsData();
                 updateRelationshipsCount();
+                
+                // Force update the relationships list if it's currently visible
+                const relationshipsList = document.getElementById('relationshipsList');
+                if (relationshipsList && relationshipsList.style.display !== 'none') {
+                    await updateRelationshipsList();
+                }
                 
                 const allItems = [...resourceNotes, sumNote, pathNote];
                 await miro.board.viewport.zoomTo(allItems);
