@@ -771,12 +771,18 @@
                     return;
                 }
 
-                // Add new source IDs to the existing relationship
-                const newSourceIds = newSourceItems.map(item => item.id);
-                const updatedSourceIds = [...calcData.sourceIds, ...newSourceIds];
+                // Prevent duplicate source notes
+                const existingSourceIds = new Set(calcData.sourceIds);
+                const newSourceIds = newSourceItems
+                    .map(item => item.id)
+                    .filter(id => !existingSourceIds.has(id));
+                if (newSourceIds.length === 0) {
+                    showStatus('Selected notes are already part of the relationship', 'error');
+                    return;
+                }
 
                 // Update the relationship data
-                calcData.sourceIds = updatedSourceIds;
+                calcData.sourceIds = [...calcData.sourceIds, ...newSourceIds];
                 calculatorNotes.set(calculatorResultId, calcData);
 
                 // Recalculate the result
@@ -784,7 +790,7 @@
 
                 await saveCalculatorData();
 
-                showStatus(`Added ${newSourceItems.length} item(s) to ${calcData.operation} relationship`, 'success');
+                showStatus(`Added ${newSourceIds.length} item(s) to ${calcData.operation} relationship`, 'success');
 
                 // Update relationships list if visible
                 const relationshipsList = document.getElementById('relationshipsList');
@@ -797,66 +803,6 @@
                 showStatus('Error adding to relationship: ' + error.message, 'error');
             }
         }
-        try {
-            const countInput = document.getElementById('spawnCount');
-            const count = parseInt(countInput ? countInput.value : 3) || 3;
-
-            if (count < 1 || count > 20) {
-                showStatus('Please enter a number between 1 and 20', 'error');
-                return;
-            }
-
-            const spacing = 400;
-            const viewport = await miro.board.viewport.get();
-            const centerX = viewport.x + (viewport.width / 2);
-            const centerY = viewport.y + (viewport.height / 2);
-
-            const stickyNotes = [];
-            const startX = centerX - ((count - 1) * spacing / 2);
-            const startY = centerY;
-
-            for (let i = 0; i < count; i++) {
-                const stickyNote = await miro.board.createStickyNote({
-                    content: `${i + 1}`,
-                    x: startX + (i * spacing),
-                    y: startY,
-                    style: { fillColor: 'light_blue' }
-                });
-                stickyNotes.push(stickyNote);
-            }
-
-            for (let i = 0; i < stickyNotes.length - 1; i++) {
-                try {
-                    await miro.board.createConnector({
-                        start: {
-                            item: stickyNotes[i].id,
-                            snapTo: 'bottom'
-                        },
-                        end: {
-                            item: stickyNotes[i + 1].id,
-                            snapTo: 'top'
-                        },
-                        style: {
-                            strokeColor: '#1976d2',
-                            strokeWidth: 2
-                        }
-                    });
-                } catch (connectorError) {
-                    console.log('Could not create connector:', connectorError.message);
-                }
-            }
-
-            if (stickyNotes.length > 0) {
-                await miro.board.viewport.zoomTo(stickyNotes);
-            }
-
-            showStatus(`Spawned ${count} connected numbers`, 'success');
-
-        } catch (error) {
-            console.error('Error spawning numbers:', error);
-            showStatus('Error spawning numbers: ' + error.message, 'error');
-        }
-            }
 
         async function createResourcePoolHandler() {
             try {
