@@ -59,6 +59,34 @@
             text-align: center;
         }
         
+        /* Player Profiles */
+        .profile-help {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+        
+        .profiles-grid {
+            display: grid;
+            grid-template-columns: 1fr 60px;
+            gap: 6px;
+            align-items: center;
+        }
+        
+        .profiles-grid label {
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .profile-input {
+            padding: 4px 6px;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+            font-size: 11px;
+            text-align: center;
+        }
+        
         button { 
             width: 100%; 
             padding: 8px; 
@@ -73,7 +101,6 @@
         .btn-sum { background: #ffc107; color: #000; }
         .btn-product { background: #28a745; color: white; }
         .btn-spawn { background: #6c757d; color: white; }
-        .btn-expand { background: #17a2b8; color: white; }
         
         button:disabled { background: #e9ecef; color: #6c757d; cursor: not-allowed; }
         button:hover:not(:disabled) { opacity: 0.9; }
@@ -107,6 +134,7 @@
         .dig { background: #d4edda; color: #155724; }
         .crate { background: #d1ecf1; color: #0c5460; }
         
+        /* Pool Management */
         .pool-controls {
             display: flex;
             gap: 4px;
@@ -270,6 +298,7 @@
     <div class="container">
         <h3>Miro Resource Calculator</h3>
         
+        <!-- Global Variables -->
         <div class="section">
             <div class="section-title">Global Variables</div>
             <div class="globals-grid">
@@ -286,12 +315,29 @@
             </div>
         </div>
         
+        <!-- Player Profiles -->
+        <div class="section">
+            <div class="section-title">Player Profiles</div>
+            <div class="profile-help">Discovery rates (0.0 to 1.0): how likely players find resources on each path type</div>
+            <div class="profiles-grid">
+                <label>Main Path:</label>
+                <input type="number" id="mainPath" value="1.0" min="0" max="1" step="0.1" class="profile-input">
+                <label>Obvious Path:</label>
+                <input type="number" id="obviousPath" value="0.8" min="0" max="1" step="0.1" class="profile-input">
+                <label>Obscured Path:</label>
+                <input type="number" id="obscuredPath" value="0.5" min="0" max="1" step="0.1" class="profile-input">
+                <label>Hidden Path:</label>
+                <input type="number" id="hiddenPath" value="0.2" min="0" max="1" step="0.1" class="profile-input">
+                <label>Everything:</label>
+                <input type="number" id="everythingPath" value="1.0" min="0" max="1" step="0.1" class="profile-input">
+            </div>
+        </div>
+        
         <div class="section">
             <div class="section-title">Calculator</div>
             <div id="selection">Select sticky notes with numbers</div>
             <button id="sumBtn" class="btn-sum" disabled>Create Sum</button>
             <button id="productBtn" class="btn-product" disabled>Create Product</button>
-            <button id="expandBtn" class="btn-expand" disabled>Expand Relationship</button>
         </div>
         
         <div class="section">
@@ -305,6 +351,7 @@
             </div>
         </div>
         
+        <!-- Resource Pool Spawner -->
         <div class="section">
             <div class="section-title">Resource Pool Spawner</div>
             <div class="pool-controls">
@@ -314,6 +361,13 @@
                     <option value="barrel-big">Big Barrel</option>
                     <option value="dig">Dig</option>
                     <option value="crate">Crate</option>
+                </select>
+                <select id="pathTypeSelect" class="pool-select">
+                    <option value="main">Main Path</option>
+                    <option value="obvious">Obvious Path</option>
+                    <option value="obscured">Obscured Path</option>
+                    <option value="hidden">Hidden Path</option>
+                    <option value="everything">Everything</option>
                 </select>
                 <input type="number" id="poolQuantity" class="pool-input" min="2" max="20" value="3" placeholder="Quantity">
             </div>
@@ -353,11 +407,13 @@
         let isInitialized = false;
         let calculatorNotes = new Map();
         let spawnedResources = new Map();
+        let pathCalculations = new Map();
         let lastUIUpdate = 0;
         let lastCalculatorCheck = 0;
         let currentRenamingId = null;
 
         miro.board.ui.on('icon:click', async () => {
+            console.log('Icon clicked');
             try {
                 await miro.board.ui.openPanel({
                     url: 'https://fglux-tool-v4.vercel.app/'
@@ -369,19 +425,23 @@
 
         async function init() {
             if (isInitialized) return;
+            console.log('Initializing resource calculator');
             
             try {
                 if (typeof miro === 'undefined') {
+                    console.log('Miro not loaded yet, waiting...');
                     setTimeout(init, 100);
                     return;
                 }
                 
                 setupUI();
                 await loadCalculatorData();
+                await loadPathCalculationsData();
                 await loadSpawnedResourcesData();
                 updateRelationshipsCount();
                 
                 isInitialized = true;
+                console.log('Resource calculator initialized successfully');
                 
             } catch (error) {
                 console.error('Init error:', error);
@@ -390,14 +450,13 @@
         }
 
         function setupUI() {
+            console.log('Setting up UI');
+            
             try {
                 const sumBtn = document.getElementById('sumBtn');
                 const productBtn = document.getElementById('productBtn');
-                const expandBtn = document.getElementById('expandBtn');
-                
                 if (sumBtn) sumBtn.addEventListener('click', () => calculate('sum'));
                 if (productBtn) productBtn.addEventListener('click', () => calculate('product'));
-                if (expandBtn) expandBtn.addEventListener('click', expandRelationship);
                 
                 const createBarrelSmall = document.getElementById('createBarrelSmall');
                 const createBarrelMedium = document.getElementById('createBarrelMedium');
@@ -411,6 +470,7 @@
                 if (createDig) createDig.addEventListener('click', () => createResource('dig', 'standard'));
                 if (createCrate) createCrate.addEventListener('click', () => createResource('crate', 'standard'));
                 
+                // Global variable listeners for dynamic updates
                 const barrelSmallInput = document.getElementById('barrelSmall');
                 const barrelMediumInput = document.getElementById('barrelMedium');
                 const barrelBigInput = document.getElementById('barrelBig');
@@ -423,6 +483,20 @@
                 if (digValueInput) digValueInput.addEventListener('input', () => updateResourceValues('dig'));
                 if (crateValueInput) crateValueInput.addEventListener('input', () => updateResourceValues('crate'));
                 
+                // Player profile event listeners
+                const mainPathInput = document.getElementById('mainPath');
+                const obviousPathInput = document.getElementById('obviousPath');
+                const obscuredPathInput = document.getElementById('obscuredPath');
+                const hiddenPathInput = document.getElementById('hiddenPath');
+                const everythingPathInput = document.getElementById('everythingPath');
+                
+                if (mainPathInput) mainPathInput.addEventListener('input', (e) => clampAndUpdatePath(e, 'main'));
+                if (obviousPathInput) obviousPathInput.addEventListener('input', (e) => clampAndUpdatePath(e, 'obvious'));
+                if (obscuredPathInput) obscuredPathInput.addEventListener('input', (e) => clampAndUpdatePath(e, 'obscured'));
+                if (hiddenPathInput) hiddenPathInput.addEventListener('input', (e) => clampAndUpdatePath(e, 'hidden'));
+                if (everythingPathInput) everythingPathInput.addEventListener('input', (e) => clampAndUpdatePath(e, 'everything'));
+                
+                // Resource pool spawner
                 const createResourcePoolBtn = document.getElementById('createResourcePool');
                 if (createResourcePoolBtn) createResourcePoolBtn.addEventListener('click', createResourcePoolHandler);
                 
@@ -461,6 +535,14 @@
                     console.log('selection:update listener failed:', error);
                 }
                 
+                try {
+                    miro.board.ui.on('items:update', (event) => {
+                        throttledHandleItemsUpdate(event);
+                    });
+                } catch (error) {
+                    console.log('items:update listener failed:', error);
+                }
+                
                 setTimeout(throttledUpdateUI, 1000);
                 
                 setInterval(() => {
@@ -469,67 +551,10 @@
                     }
                 }, 10000);
                 
+                console.log('UI setup complete');
+                
             } catch (error) {
                 console.error('Error setting up UI:', error);
-            }
-        }
-
-        async function expandRelationship() {
-            try {
-                const selection = await miro.board.getSelection();
-                
-                let calculatorResultId = null;
-                const newSourceItems = [];
-                
-                for (const item of selection) {
-                    if (item.type === 'sticky_note') {
-                        if (calculatorNotes.has(item.id)) {
-                            calculatorResultId = item.id;
-                        } else if (item.content) {
-                            const cleanContent = item.content.replace(/<[^>]*>/g, '').trim();
-                            const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
-                            if (match) {
-                                newSourceItems.push(item);
-                            } else {
-                                const num = parseFloat(cleanContent);
-                                if (!isNaN(num)) {
-                                    newSourceItems.push(item);
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                if (!calculatorResultId || newSourceItems.length === 0) {
-                    showStatus('Please select a calculator result and at least one number note', 'error');
-                    return;
-                }
-                
-                const calcData = calculatorNotes.get(calculatorResultId);
-                if (!calcData) {
-                    showStatus('Calculator relationship not found', 'error');
-                    return;
-                }
-                
-                const newSourceIds = newSourceItems.map(item => item.id);
-                const updatedSourceIds = [...calcData.sourceIds, ...newSourceIds];
-                
-                calcData.sourceIds = updatedSourceIds;
-                calculatorNotes.set(calculatorResultId, calcData);
-                
-                await recalculateResult(calculatorResultId, calcData);
-                await saveCalculatorData();
-                
-                showStatus(`Added ${newSourceItems.length} item(s) to ${calcData.operation} relationship`, 'success');
-                
-                const relationshipsList = document.getElementById('relationshipsList');
-                if (relationshipsList && relationshipsList.style.display !== 'none') {
-                    await updateRelationshipsList();
-                }
-                
-            } catch (error) {
-                console.error('Error expanding relationship:', error);
-                showStatus('Error expanding relationship: ' + error.message, 'error');
             }
         }
 
@@ -570,6 +595,7 @@
                     style: { fillColor: fillColor }
                 });
                 
+                // Track spawned resource for dynamic updates
                 if (!spawnedResources.has(resourceType)) {
                     spawnedResources.set(resourceType, []);
                 }
@@ -752,14 +778,16 @@
         async function createResourcePoolHandler() {
             try {
                 const resourceTypeSelect = document.getElementById('resourceTypeSelect');
+                const pathTypeSelect = document.getElementById('pathTypeSelect');
                 const poolQuantityInput = document.getElementById('poolQuantity');
                 
-                if (!resourceTypeSelect || !poolQuantityInput) {
+                if (!resourceTypeSelect || !pathTypeSelect || !poolQuantityInput) {
                     showStatus('Error: UI elements not found', 'error');
                     return;
                 }
                 
                 const resourceType = resourceTypeSelect.value;
+                const pathType = pathTypeSelect.value;
                 const quantity = parseInt(poolQuantityInput.value) || 3;
                 
                 if (quantity < 2 || quantity > 20) {
@@ -784,4 +812,820 @@
                         case 'medium':
                             value = document.getElementById('barrelMedium').value;
                             content = `Med Barrel (${value})`;
-                            fillColor
+                            fillColor = 'yellow';
+                            break;
+                        case 'big':
+                            value = document.getElementById('barrelBig').value;
+                            content = `Big Barrel (${value})`;
+                            fillColor = 'orange';
+                            break;
+                        default:
+                            value = '5';
+                            content = 'Barrel (5)';
+                            fillColor = 'light_yellow';
+                    }
+                } else if (type === 'dig') {
+                    value = document.getElementById('digValue').value;
+                    content = `Dig (${value})`;
+                    fillColor = 'light_green';
+                } else if (type === 'crate') {
+                    value = document.getElementById('crateValue').value;
+                    content = `Crate (${value})`;
+                    fillColor = 'light_blue';
+                }
+                
+                const spacing = 250;
+                const startX = centerX - ((quantity - 1) * spacing / 2);
+                const resourceNotes = [];
+                
+                for (let i = 0; i < quantity; i++) {
+                    const resource = await miro.board.createStickyNote({
+                        content: content,
+                        x: startX + (i * spacing),
+                        y: centerY,
+                        style: { fillColor: fillColor }
+                    });
+                    resourceNotes.push(resource);
+                    
+                    // Track spawned resource for dynamic updates
+                    if (!spawnedResources.has(resourceType)) {
+                        spawnedResources.set(resourceType, []);
+                    }
+                    spawnedResources.get(resourceType).push(resource.id);
+                }
+                
+                const totalValue = parseInt(value) * quantity;
+                const lastResource = resourceNotes[resourceNotes.length - 1];
+                const sumX = lastResource.x + (lastResource.width || 200) + 100;
+                const sumY = lastResource.y;
+                
+                const sumNote = await miro.board.createStickyNote({
+                    content: totalValue.toString(),
+                    x: sumX,
+                    y: sumY,
+                    style: { fillColor: fillColor }
+                });
+                
+                const pathMultiplier = getPathMultiplier(pathType);
+                const pathValue = Math.round(totalValue * pathMultiplier);
+                const pathX = sumX + (sumNote.width || 200) + 100;
+                const pathY = sumY;
+                
+                const pathNote = await miro.board.createStickyNote({
+                    content: `${pathType.toUpperCase()}: ${pathValue} (${(pathMultiplier * 100).toFixed(0)}%)`,
+                    x: pathX,
+                    y: pathY,
+                    style: { fillColor: 'gray' }
+                });
+                
+                const sourceIds = resourceNotes.map(note => note.id);
+                calculatorNotes.set(sumNote.id, {
+                    operation: 'sum',
+                    sourceIds: sourceIds,
+                    name: `POOL_${type.toUpperCase()}_${Date.now().toString().slice(-6)}`,
+                    created: Date.now()
+                });
+                
+                const pathKey = `${pathType}-${Date.now().toString().slice(-6)}`;
+                pathCalculations.set(pathNote.id, {
+                    pathType: pathType,
+                    sourceId: sumNote.id,
+                    resourceIds: sourceIds,
+                    name: pathKey,
+                    created: Date.now()
+                });
+                
+                await saveCalculatorData();
+                await savePathCalculationsData();
+                updateRelationshipsCount();
+                
+                // Force update the relationships list if it's currently visible
+                const relationshipsList = document.getElementById('relationshipsList');
+                if (relationshipsList && relationshipsList.style.display !== 'none') {
+                    await updateRelationshipsList();
+                }
+                
+                const allItems = [...resourceNotes, sumNote, pathNote];
+                await miro.board.viewport.zoomTo(allItems);
+                
+                showStatus(`Created ${pathType} path: ${quantity}x ${content} = ${totalValue} → ${pathValue}`, 'success');
+                
+            } catch (error) {
+                console.error('Error creating resource pool:', error);
+                showStatus('Error creating resource pool: ' + error.message, 'error');
+            }
+        }
+
+        function clampAndUpdatePath(event, pathType) {
+            const input = event.target;
+            let value = parseFloat(input.value);
+            
+            if (isNaN(value)) value = 0;
+            if (value < 0) value = 0;
+            if (value > 1) value = 1;
+            
+            input.value = value.toFixed(1);
+            updatePathCalculations(pathType);
+        }
+
+        function getPathMultiplier(pathType) {
+            const inputs = {
+                'main': document.getElementById('mainPath'),
+                'obvious': document.getElementById('obviousPath'),
+                'obscured': document.getElementById('obscuredPath'),
+                'hidden': document.getElementById('hiddenPath'),
+                'everything': document.getElementById('everythingPath')
+            };
+            
+            const input = inputs[pathType];
+            return input ? parseFloat(input.value) || 0 : 0;
+        }
+
+        async function updatePathCalculations(pathType) {
+            try {
+                const pathMultiplier = getPathMultiplier(pathType);
+                let updatedCount = 0;
+                
+                for (const [pathNoteId, pathData] of pathCalculations.entries()) {
+                    if (pathData.pathType === pathType) {
+                        try {
+                            const sourceNote = await miro.board.getById(pathData.sourceId);
+                            if (sourceNote && sourceNote.content) {
+                                const sourceValue = parseInt(sourceNote.content.replace(/<[^>]*>/g, '').trim());
+                                const pathValue = Math.round(sourceValue * pathMultiplier);
+                                
+                                const pathNote = await miro.board.getById(pathNoteId);
+                                if (pathNote) {
+                                    pathNote.content = `${pathType.toUpperCase()}: ${pathValue} (${(pathMultiplier * 100).toFixed(0)}%)`;
+                                    await pathNote.sync();
+                                    updatedCount++;
+                                }
+                            }
+                        } catch (error) {
+                            // Path note may have been deleted
+                        }
+                    }
+                }
+                
+                if (updatedCount > 0) {
+                    showStatus(`Updated ${updatedCount} ${pathType} path calculations`, 'success');
+                }
+                
+            } catch (error) {
+                console.error('Error updating path calculations:', error);
+            }
+        }
+
+        async function savePathCalculationsData() {
+            try {
+                const data = Object.fromEntries(pathCalculations);
+                await miro.board.setAppData('pathCalculations', data);
+            } catch (error) {
+                console.error('Error saving path calculations data:', error);
+            }
+        }
+
+        async function loadPathCalculationsData() {
+            try {
+                const data = await miro.board.getAppData('pathCalculations');
+                if (data) {
+                    pathCalculations = new Map(Object.entries(data));
+                } else {
+                    pathCalculations = new Map();
+                }
+            } catch (error) {
+                console.error('Error loading path calculations data:', error);
+                pathCalculations = new Map();
+            }
+        }
+
+        async function updateResourceValues(resourceType) {
+            try {
+                const resourceIds = spawnedResources.get(resourceType);
+                if (!resourceIds || resourceIds.length === 0) {
+                    return;
+                }
+                
+                let newValue, newContent, contentPattern;
+                const barrelSmallInput = document.getElementById('barrelSmall');
+                const barrelMediumInput = document.getElementById('barrelMedium');
+                const barrelBigInput = document.getElementById('barrelBig');
+                const digValueInput = document.getElementById('digValue');
+                const crateValueInput = document.getElementById('crateValue');
+                
+                switch(resourceType) {
+                    case 'barrel-small':
+                        newValue = barrelSmallInput ? barrelSmallInput.value : '5';
+                        newContent = `Small Barrel (${newValue})`;
+                        contentPattern = /Small Barrel \(\d+\)/;
+                        break;
+                    case 'barrel-medium':
+                        newValue = barrelMediumInput ? barrelMediumInput.value : '10';
+                        newContent = `Med Barrel (${newValue})`;
+                        contentPattern = /Med Barrel \(\d+\)/;
+                        break;
+                    case 'barrel-big':
+                        newValue = barrelBigInput ? barrelBigInput.value : '20';
+                        newContent = `Big Barrel (${newValue})`;
+                        contentPattern = /Big Barrel \(\d+\)/;
+                        break;
+                    case 'dig':
+                        newValue = digValueInput ? digValueInput.value : '3';
+                        newContent = `Dig (${newValue})`;
+                        contentPattern = /Dig \(\d+\)/;
+                        break;
+                    case 'crate':
+                        newValue = crateValueInput ? crateValueInput.value : '15';
+                        newContent = `Crate (${newValue})`;
+                        contentPattern = /Crate \(\d+\)/;
+                        break;
+                    default:
+                        return;
+                }
+                
+                let updatedCount = 0;
+                const validIds = [];
+                
+                for (const resourceId of resourceIds) {
+                    try {
+                        const resource = await miro.board.getById(resourceId);
+                        if (resource && resource.type === 'sticky_note') {
+                            if (resource.content && contentPattern.test(resource.content.replace(/<[^>]*>/g, '').trim())) {
+                                resource.content = newContent;
+                                await resource.sync();
+                                updatedCount++;
+                            }
+                            validIds.push(resourceId);
+                        }
+                    } catch (error) {
+                        // Resource no longer exists
+                    }
+                }
+                
+                spawnedResources.set(resourceType, validIds);
+                await saveSpawnedResourcesData();
+                await recheckAllCalculatorNotes();
+                
+                if (updatedCount > 0) {
+                    showStatus(`Updated ${updatedCount} ${resourceType.replace('-', ' ')} resources to ${newValue}`, 'success');
+                }
+                
+            } catch (error) {
+                console.error('Error updating resource values:', error);
+                showStatus('Error updating resources: ' + error.message, 'error');
+            }
+        }
+
+        async function saveSpawnedResourcesData() {
+            try {
+                const data = Object.fromEntries(spawnedResources);
+                await miro.board.setAppData('spawnedResources', data);
+            } catch (error) {
+                console.error('Error saving spawned resources data:', error);
+            }
+        }
+
+        async function loadSpawnedResourcesData() {
+            try {
+                const data = await miro.board.getAppData('spawnedResources');
+                if (data) {
+                    spawnedResources = new Map(Object.entries(data));
+                    await cleanupSpawnedResources();
+                } else {
+                    spawnedResources = new Map();
+                }
+            } catch (error) {
+                console.error('Error loading spawned resources data:', error);
+                spawnedResources = new Map();
+            }
+        }
+
+        async function cleanupSpawnedResources() {
+            for (const [resourceType, resourceIds] of spawnedResources.entries()) {
+                const validIds = [];
+                for (const resourceId of resourceIds) {
+                    try {
+                        const resource = await miro.board.getById(resourceId);
+                        if (resource && resource.type === 'sticky_note') {
+                            validIds.push(resourceId);
+                        }
+                    } catch (error) {
+                        // Resource no longer exists
+                    }
+                }
+                spawnedResources.set(resourceType, validIds);
+            }
+            await saveSpawnedResourcesData();
+        }
+
+        function throttledUpdateUI() {
+            const now = Date.now();
+            if (now - lastUIUpdate > 1000) {
+                lastUIUpdate = now;
+                updateUI();
+            }
+        }
+
+        function throttledHandleItemsUpdate(event) {
+            const now = Date.now();
+            if (now - lastCalculatorCheck > 2000) {
+                lastCalculatorCheck = now;
+                handleItemsUpdate(event);
+            }
+        }
+
+        function throttledRecheckAllCalculatorNotes() {
+            const now = Date.now();
+            if (now - lastCalculatorCheck > 5000) {
+                lastCalculatorCheck = now;
+                recheckAllCalculatorNotes();
+            }
+        }
+
+        async function updateUI() {
+            try {
+                const selection = await miro.board.getSelection();
+                
+                if (!selection || !Array.isArray(selection)) {
+                    return;
+                }
+                
+                const numbers = [];
+                for (let i = 0; i < selection.length; i++) {
+                    const item = selection[i];
+                    
+                    if (item.type === 'sticky_note' && item.content) {
+                        let cleanContent = item.content.trim();
+                        cleanContent = cleanContent.replace(/<[^>]*>/g, '');
+                        
+                        const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
+                        if (match) {
+                            numbers.push(parseFloat(match[1]));
+                        } else {
+                            const num = parseFloat(cleanContent);
+                            if (!isNaN(num)) {
+                                numbers.push(num);
+                            }
+                        }
+                    }
+                }
+                
+                const hasEnough = numbers.length >= 2;
+                
+                const sumBtn = document.getElementById('sumBtn');
+                const productBtn = document.getElementById('productBtn');
+                const selectionDiv = document.getElementById('selection');
+                
+                if (sumBtn) sumBtn.disabled = !hasEnough;
+                if (productBtn) productBtn.disabled = !hasEnough;
+                
+                if (selectionDiv) {
+                    const text = hasEnough 
+                        ? `${numbers.length} numbers selected: [${numbers.join(', ')}]`
+                        : `Selected: ${selection.length} items (need 2+ with numbers)`;
+                    selectionDiv.textContent = text;
+                }
+                
+            } catch (error) {
+                console.error('Error in updateUI:', error);
+            }
+        }
+
+        async function updateRelationshipsList() {
+            const content = document.getElementById('relationshipsContent');
+            if (!content) return;
+            
+            await verifyAndCleanupRelationships();
+            
+            if (calculatorNotes.size === 0) {
+                content.innerHTML = 'No calculator relationships found';
+                return;
+            }
+            
+            let html = '';
+            let displayedCount = 0;
+            
+            for (const [resultId, calcData] of calculatorNotes.entries()) {
+                try {
+                    let resultContent = 'Loading...';
+                    let resultExists = false;
+                    
+                    try {
+                        const resultNote = await miro.board.getById(resultId);
+                        if (resultNote && resultNote.content) {
+                            resultContent = resultNote.content.replace(/<[^>]*>/g, '').trim();
+                            resultExists = true;
+                        }
+                    } catch (error) {
+                        continue;
+                    }
+                    
+                    const sourceInfos = [];
+                    let validSourceCount = 0;
+                    
+                    for (const sourceId of calcData.sourceIds) {
+                        try {
+                            const sourceNote = await miro.board.getById(sourceId);
+                            if (sourceNote && sourceNote.content) {
+                                const content = sourceNote.content.replace(/<[^>]*>/g, '').trim();
+                                const match = content.match(/\((\d+)\)/) || content.match(/^(\d+)$/);
+                                if (match) {
+                                    sourceInfos.push(match[1]);
+                                } else {
+                                    sourceInfos.push(content);
+                                }
+                                validSourceCount++;
+                            }
+                        } catch (error) {
+                            // Source note missing
+                        }
+                    }
+                    
+                    if (resultExists && validSourceCount >= 2) {
+                        const operationSymbol = calcData.operation === 'sum' ? '+' : '×';
+                        const sourceText = sourceInfos.join(` ${operationSymbol} `);
+                        
+                        html += `
+                            <div class="relationship-item ${calcData.operation}">
+                                <div class="relationship-header">
+                                    <span onclick="goToResultNote('${resultId}')" title="Click to go to result note">
+                                        ${calcData.operation.toUpperCase()}: ${resultContent}
+                                    </span>
+                                    <span class="relationship-name" onclick="startRename('${resultId}')" title="Click to rename">
+                                        ${calcData.name || 'Unnamed'}
+                                    </span>
+                                </div>
+                                <div class="relationship-sources">
+                                    Sources: ${sourceText}
+                                </div>
+                                <div class="relationship-actions">
+                                    <button class="action-btn goto-btn" onclick="goToResultNote('${resultId}')" title="Go to result note">
+                                        Go
+                                    </button>
+                                    <button class="action-btn select-parents-btn" onclick="selectParents('${resultId}')" title="Select all parent notes">
+                                        Parents
+                                    </button>
+                                    <button class="action-btn rename-btn" onclick="startRename('${resultId}')" title="Rename relationship">
+                                        Rename
+                                    </button>
+                                    <button class="action-btn delete-btn" onclick="deleteRelationship('${resultId}')" title="Delete relationship and all related notes">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        displayedCount++;
+                    }
+                    
+                } catch (error) {
+                    console.error('Error displaying relationship:', error);
+                }
+            }
+            
+            if (displayedCount === 0) {
+                content.innerHTML = 'No valid calculator relationships found';
+            } else {
+                content.innerHTML = html;
+            }
+        }
+
+        window.goToResultNote = async function(resultId) {
+            try {
+                const resultNote = await miro.board.getById(resultId);
+                if (resultNote) {
+                    await miro.board.viewport.zoomTo(resultNote);
+                    await miro.board.select({ id: resultId });
+                    showStatus('Navigated to result note', 'success');
+                } else {
+                    showStatus('Result note not found', 'error');
+                }
+            } catch (error) {
+                console.error('Error navigating to result note:', error);
+                showStatus('Error: Result note may have been deleted', 'error');
+            }
+        }
+
+        window.selectParents = async function(resultId) {
+            try {
+                const calcData = calculatorNotes.get(resultId);
+                if (!calcData) {
+                    showStatus('Relationship not found', 'error');
+                    return;
+                }
+
+                const parentNotes = [];
+                let validParentCount = 0;
+
+                for (const sourceId of calcData.sourceIds) {
+                    try {
+                        const sourceNote = await miro.board.getById(sourceId);
+                        if (sourceNote) {
+                            parentNotes.push(sourceNote);
+                            validParentCount++;
+                        }
+                    } catch (error) {
+                        // Source note missing
+                    }
+                }
+
+                if (parentNotes.length > 0) {
+                    await miro.board.select({ id: parentNotes.map(note => note.id) });
+                    await miro.board.viewport.zoomTo(parentNotes);
+                    showStatus(`Selected ${validParentCount} parent notes`, 'success');
+                } else {
+                    showStatus('No parent notes found', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error selecting parent notes:', error);
+                showStatus('Error selecting parent notes: ' + error.message, 'error');
+            }
+        }
+
+        window.startRename = function(resultId) {
+            currentRenamingId = resultId;
+            const calcData = calculatorNotes.get(resultId);
+            const currentName = calcData ? calcData.name : 'Unnamed';
+            
+            const renameInput = document.getElementById('renameInput');
+            const renameModal = document.getElementById('renameModal');
+            if (renameInput) renameInput.value = currentName;
+            if (renameModal) renameModal.style.display = 'block';
+            if (renameInput) renameInput.focus();
+        }
+
+        function confirmRenameHandler() {
+            const renameInput = document.getElementById('renameInput');
+            const newName = renameInput ? renameInput.value.trim() : '';
+            if (newName && currentRenamingId) {
+                const calcData = calculatorNotes.get(currentRenamingId);
+                if (calcData) {
+                    calcData.name = newName;
+                    calculatorNotes.set(currentRenamingId, calcData);
+                    saveCalculatorData();
+                    updateRelationshipsList();
+                    showStatus('Relationship renamed', 'success');
+                }
+            }
+            cancelRenameHandler();
+        }
+
+        function cancelRenameHandler() {
+            const renameModal = document.getElementById('renameModal');
+            const renameInput = document.getElementById('renameInput');
+            if (renameModal) renameModal.style.display = 'none';
+            currentRenamingId = null;
+            if (renameInput) renameInput.value = '';
+        }
+
+        window.deleteRelationship = async function(resultId) {
+            try {
+                const calcData = calculatorNotes.get(resultId);
+                if (!calcData) {
+                    showStatus('Relationship not found', 'error');
+                    return;
+                }
+
+                const confirmMessage = `Delete relationship "${calcData.name}" and ALL related notes?\n\nThis will delete:\n- The result note (${calcData.operation})\n- All ${calcData.sourceIds.length} source notes\n\nThis action cannot be undone.`;
+                
+                if (!confirm(confirmMessage)) {
+                    return;
+                }
+
+                let deletedCount = 0;
+                let errors = [];
+
+                const itemsToDelete = [];
+                
+                for (const sourceId of calcData.sourceIds) {
+                    try {
+                        const sourceNote = await miro.board.getById(sourceId);
+                        if (sourceNote) {
+                            itemsToDelete.push(sourceNote);
+                        }
+                    } catch (error) {
+                        errors.push(`Source ${sourceId.slice(-8)}: ${error.message}`);
+                    }
+                }
+
+                try {
+                    const resultNote = await miro.board.getById(resultId);
+                    if (resultNote) {
+                        itemsToDelete.push(resultNote);
+                    }
+                } catch (error) {
+                    errors.push(`Result ${resultId.slice(-8)}: ${error.message}`);
+                }
+
+                for (const item of itemsToDelete) {
+                    try {
+                        await miro.board.remove(item);
+                        deletedCount++;
+                    } catch (error) {
+                        errors.push(`Item ${item.id.slice(-8)}: ${error.message}`);
+                    }
+                }
+
+                calculatorNotes.delete(resultId);
+                await saveCalculatorData();
+                updateRelationshipsCount();
+                await updateRelationshipsList();
+
+                if (errors.length > 0) {
+                    showStatus(`Removed ${deletedCount} notes, ${errors.length} errors`, deletedCount > 0 ? 'success' : 'error');
+                } else {
+                    showStatus(`Successfully removed ${deletedCount} notes`, 'success');
+                }
+                
+            } catch (error) {
+                console.error('Error deleting relationship:', error);
+                showStatus('Error deleting relationship: ' + error.message, 'error');
+            }
+        }
+
+        async function handleItemsUpdate(event) {
+            try {
+                for (const updatedItem of event.items) {
+                    if (updatedItem.type === 'sticky_note') {
+                        for (const [resultId, calcData] of calculatorNotes.entries()) {
+                            if (calcData.sourceIds.includes(updatedItem.id)) {
+                                await recalculateResult(resultId, calcData);
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error handling items update:', error);
+            }
+        }
+
+        async function recalculateResult(resultId, calcData) {
+            try {
+                const sourceValues = [];
+                
+                for (const sourceId of calcData.sourceIds) {
+                    try {
+                        const sourceItem = await miro.board.getById(sourceId);
+                        if (sourceItem && sourceItem.type === 'sticky_note' && sourceItem.content) {
+                            const cleanContent = sourceItem.content.replace(/<[^>]*>/g, '').trim();
+                            const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
+                            if (match) {
+                                sourceValues.push(parseFloat(match[1]));
+                            } else {
+                                const num = parseFloat(cleanContent);
+                                if (!isNaN(num)) {
+                                    sourceValues.push(num);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        // Source note missing
+                    }
+                }
+                
+                if (sourceValues.length < 2) {
+                    try {
+                        const resultNote = await miro.board.getById(resultId);
+                        if (resultNote) {
+                            await miro.board.remove(resultNote);
+                        }
+                        calculatorNotes.delete(resultId);
+                        await saveCalculatorData();
+                        updateRelationshipsCount();
+                    } catch (error) {
+                        calculatorNotes.delete(resultId);
+                        await saveCalculatorData();
+                        updateRelationshipsCount();
+                    }
+                    return;
+                }
+                
+                let newResult;
+                if (calcData.operation === 'sum') {
+                    newResult = sourceValues.reduce((a, b) => a + b, 0);
+                } else {
+                    newResult = sourceValues.reduce((a, b) => a * b, 1);
+                }
+                
+                try {
+                    const resultItem = await miro.board.getById(resultId);
+                    if (resultItem) {
+                        resultItem.content = newResult.toString();
+                        await resultItem.sync();
+                    }
+                } catch (error) {
+                    calculatorNotes.delete(resultId);
+                    await saveCalculatorData();
+                }
+                
+            } catch (error) {
+                console.error('Error in recalculateResult:', error);
+            }
+        }
+
+        async function verifyAndCleanupRelationships() {
+            const toDelete = [];
+            
+            for (const [resultId, calcData] of calculatorNotes.entries()) {
+                let isValid = true;
+                
+                try {
+                    const resultNote = await miro.board.getById(resultId);
+                    if (!resultNote || resultNote.type !== 'sticky_note') {
+                        isValid = false;
+                    }
+                } catch (error) {
+                    isValid = false;
+                }
+                
+                let validSourceCount = 0;
+                for (const sourceId of calcData.sourceIds) {
+                    try {
+                        const sourceNote = await miro.board.getById(sourceId);
+                        if (sourceNote && sourceNote.type === 'sticky_note') {
+                            validSourceCount++;
+                        }
+                    } catch (error) {
+                        // Source note doesn't exist
+                    }
+                }
+                
+                if (validSourceCount < 2) {
+                    isValid = false;
+                }
+                
+                if (!isValid) {
+                    toDelete.push(resultId);
+                }
+            }
+            
+            if (toDelete.length > 0) {
+                for (const resultId of toDelete) {
+                    calculatorNotes.delete(resultId);
+                }
+                await saveCalculatorData();
+            }
+        }
+
+        async function recheckAllCalculatorNotes() {
+            try {
+                await verifyAndCleanupRelationships();
+                for (const [resultId, calcData] of calculatorNotes.entries()) {
+                    await recalculateResult(resultId, calcData);
+                }
+            } catch (error) {
+                console.error('Error in recheckAllCalculatorNotes:', error);
+            }
+        }
+
+        function updateRelationshipsCount() {
+            const countElement = document.getElementById('relationshipCount');
+            if (countElement) {
+                countElement.textContent = calculatorNotes.size;
+            }
+        }
+
+        async function saveCalculatorData() {
+            try {
+                const data = Object.fromEntries(calculatorNotes);
+                await miro.board.setAppData('calculatorNotes', data);
+            } catch (error) {
+                console.error('Error saving calculator data:', error);
+            }
+        }
+
+        async function loadCalculatorData() {
+            try {
+                const data = await miro.board.getAppData('calculatorNotes');
+                if (data) {
+                    calculatorNotes = new Map(Object.entries(data));
+                    await verifyAndCleanupRelationships();
+                } else {
+                    calculatorNotes = new Map();
+                }
+            } catch (error) {
+                console.error('Error loading calculator data:', error);
+                calculatorNotes = new Map();
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            if (status) {
+                status.textContent = message;
+                status.className = type;
+                status.style.display = 'block';
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
