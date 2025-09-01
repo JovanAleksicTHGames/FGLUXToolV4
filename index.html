@@ -564,41 +564,51 @@
                 const digValueInput = document.getElementById('digValue');
                 const crateValueInput = document.getElementById('crateValue');
 
-                if (barrelSmallInput) barrelSmallInput.addEventListener('input', () => {
-                    const value = parseInt(barrelSmallInput.value);
-                    globalVariables.barrelSmall = value > 0 ? value : 5;
-                    if (value <= 0) barrelSmallInput.value = 5;
-                    saveGlobalVariables();
-                    updateResourceValues('barrel-small');
-                });
-                if (barrelMediumInput) barrelMediumInput.addEventListener('input', () => {
-                    const value = parseInt(barrelMediumInput.value);
-                    globalVariables.barrelMedium = value > 0 ? value : 10;
-                    if (value <= 0) barrelMediumInput.value = 10;
-                    saveGlobalVariables();
-                    updateResourceValues('barrel-medium');
-                });
-                if (barrelBigInput) barrelBigInput.addEventListener('input', () => {
-                    const value = parseInt(barrelBigInput.value);
-                    globalVariables.barrelBig = value > 0 ? value : 20;
-                    if (value <= 0) barrelBigInput.value = 20;
-                    saveGlobalVariables();
-                    updateResourceValues('barrel-big');
-                });
-                if (digValueInput) digValueInput.addEventListener('input', () => {
-                    const value = parseInt(digValueInput.value);
-                    globalVariables.digValue = value > 0 ? value : 3;
-                    if (value <= 0) digValueInput.value = 3;
-                    saveGlobalVariables();
-                    updateResourceValues('dig');
-                });
-                if (crateValueInput) crateValueInput.addEventListener('input', () => {
-                    const value = parseInt(crateValueInput.value);
-                    globalVariables.crateValue = value > 0 ? value : 15;
-                    if (value <= 0) crateValueInput.value = 15;
-                    saveGlobalVariables();
-                    updateResourceValues('crate');
-                });
+                if (barrelSmallInput) {
+                    barrelSmallInput.addEventListener('input', () => {
+                        const value = parseInt(barrelSmallInput.value);
+                        globalVariables.barrelSmall = value > 0 ? value : 5;
+                        if (value <= 0) barrelSmallInput.value = 5;
+                        saveGlobalVariables();
+                        updateResourceValues('barrel-small');
+                    });
+                }
+                if (barrelMediumInput) {
+                    barrelMediumInput.addEventListener('input', () => {
+                        const value = parseInt(barrelMediumInput.value);
+                        globalVariables.barrelMedium = value > 0 ? value : 10;
+                        if (value <= 0) barrelMediumInput.value = 10;
+                        saveGlobalVariables();
+                        updateResourceValues('barrel-medium');
+                    });
+                }
+                if (barrelBigInput) {
+                    barrelBigInput.addEventListener('input', () => {
+                        const value = parseInt(barrelBigInput.value);
+                        globalVariables.barrelBig = value > 0 ? value : 20;
+                        if (value <= 0) barrelBigInput.value = 20;
+                        saveGlobalVariables();
+                        updateResourceValues('barrel-big');
+                    });
+                }
+                if (digValueInput) {
+                    digValueInput.addEventListener('input', () => {
+                        const value = parseInt(digValueInput.value);
+                        globalVariables.digValue = value > 0 ? value : 3;
+                        if (value <= 0) digValueInput.value = 3;
+                        saveGlobalVariables();
+                        updateResourceValues('dig');
+                    });
+                }
+                if (crateValueInput) {
+                    crateValueInput.addEventListener('input', () => {
+                        const value = parseInt(crateValueInput.value);
+                        globalVariables.crateValue = value > 0 ? value : 15;
+                        if (value <= 0) crateValueInput.value = 15;
+                        saveGlobalVariables();
+                        updateResourceValues('crate');
+                    });
+                }
 
                 const createResourcePoolBtn = document.getElementById('createResourcePool');
                 if (createResourcePoolBtn) createResourcePoolBtn.addEventListener('click', createResourcePoolHandler);
@@ -637,95 +647,10 @@
                         clearTimeout(selectionUpdateTimeout);
                         selectionUpdateTimeout = setTimeout(() => {
                             throttledUpdateUI();
-                        }, 500);  // Wait 500ms after selection stops changing
+                        }, 500);
                     });
                 } catch (error) {
                     console.log('selection:update listener failed:', error);
-                }
-
-                // Replace the existing updateUI() function
-                async function updateUI() {
-                    try {
-                        // Add a guard to prevent concurrent executions
-                        if (updateUI.isRunning) {
-                            return;
-                        }
-                        updateUI.isRunning = true;
-
-                        const selection = await miro.board.getSelection();
-
-                        if (!selection || !Array.isArray(selection)) {
-                            updateUI.isRunning = false;
-                            return;
-                        }
-
-                        const numbers = [];
-                        let hasCalculatorResult = false;
-
-                        for (let i = 0; i < selection.length; i++) {
-                            const item = selection[i];
-
-                            if (item.type === 'sticky_note') {
-                                if (calculatorNotes.has(item.id)) {
-                                    hasCalculatorResult = true;
-                                } else if (item.content) {
-                                    let cleanContent = item.content.trim();
-                                    cleanContent = cleanContent.replace(/<[^>]*>/g, '');
-
-                                    const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
-                                    if (match) {
-                                        numbers.push(parseFloat(match[1]));
-                                    } else {
-                                        const num = parseFloat(cleanContent);
-                                        if (!isNaN(num)) {
-                                            numbers.push(num);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        const hasEnough = numbers.length >= 2;
-                        const canExpand = numbers.length >= 1 && hasCalculatorResult;
-
-                        const sumBtn = document.getElementById('sumBtn');
-                        const productBtn = document.getElementById('productBtn');
-                        const expandBtn = document.getElementById('expandBtn');
-                        const selectionDiv = document.getElementById('selection');
-
-                        if (sumBtn) sumBtn.disabled = !hasEnough;
-                        if (productBtn) productBtn.disabled = !hasEnough;
-                        if (expandBtn) expandBtn.disabled = !canExpand;
-
-                        if (selectionDiv) {
-                            let text;
-                            if (canExpand) {
-                                text = `Can expand relationship: ${numbers.length} new number(s) selected`;
-                            } else if (hasEnough) {
-                                text = `${numbers.length} numbers selected: [${numbers.join(', ')}]`;
-                            } else {
-                                text = `Selected: ${selection.length} items (need 2+ numbers for calc, or 1+ numbers + result for expand)`;
-                            }
-                            selectionDiv.textContent = text;
-                        }
-
-                    } catch (error) {
-                        // Only log rate limit errors once
-                        if (error.message && error.message.includes('rate limit')) {
-                            if (!updateUI.rateLimitLogged) {
-                                console.error('Rate limit reached, slowing down updates');
-                                updateUI.rateLimitLogged = true;
-                                // Reset the flag after a minute
-                                setTimeout(() => {
-                                    updateUI.rateLimitLogged = false;
-                                }, 60000);
-                            }
-                        } else {
-                            console.error('Error in updateUI:', error);
-                        }
-                    } finally {
-                        updateUI.isRunning = false;
-                    }
                 }
 
                 setTimeout(throttledUpdateUI, 1000);
@@ -744,20 +669,9 @@
         async function calculate(operation) {
             try {
                 const selection = await miro.board.getSelection();
-                const validItems = [];
+                const validItems = selection.filter(item => item.type === 'sticky_note' && item.content);
 
-                // Filter out items that are already results of calculations
-                for (const item of selection) {
-                    if (item.type === 'sticky_note' && item.content) {
-                        // Skip if this item is a calculator result
-                        if (calculatorNotes.has(item.id)) {
-                            showStatus('Cannot use calculator results as sources. Please select only base notes.', 'error');
-                            return;
-                        }
-                        validItems.push(item);
-                    }
-                }
-
+                // Remove the restriction - now we CAN use calculator results as sources
                 const numbers = validItems
                     .map(item => {
                         if (!item.content) return null;
@@ -1850,6 +1764,7 @@
         } else {
             init();
         }
+
     </script>
 </body>
 </html>
