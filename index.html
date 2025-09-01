@@ -657,20 +657,17 @@
                 const validItems = [];
 
                 // Filter out items that are already results of calculations
-                // Only allow sticky notes that are results of an existing calculator relationship
                 for (const item of selection) {
-                    if (
-                        item.type === 'sticky_note' &&
-                        calculatorNotes.has(item.id)
-                    ) {
+                    if (item.type === 'sticky_note' && item.content) {
+                        // Skip if this item is a calculator result
+                        if (calculatorNotes.has(item.id)) {
+                            showStatus('Cannot use calculator results as sources. Please select only base notes.', 'error');
+                            return;
+                        }
                         validItems.push(item);
                     }
                 }
 
-                if (validItems.length < 2) {
-                    showStatus('Please select at least 2 sticky notes that are results of a calculator relationship (sum/product)', 'error');
-                    return;
-                }
                 const numbers = validItems
                     .map(item => {
                         if (!item.content) return null;
