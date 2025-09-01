@@ -1331,34 +1331,34 @@
                         const sourceText = sourceInfos.join(` ${operationSymbol} `);
 
                         html += `
-                            <div class="relationship-item ${calcData.operation}">
-                                <div class="relationship-header">
-                                    <span class="goto-result" data-result-id="${resultId}" title="Click to go to result note" style="cursor: pointer;">
-                                        ${calcData.operation.toUpperCase()}: ${resultContent}
-                                    </span>
-                                    <span class="relationship-name rename-result" data-result-id="${resultId}" title="Click to rename" style="cursor: pointer;">
-                                        ${calcData.name || 'Unnamed'}
-                                    </span>
-                                </div>
-                                <div class="relationship-sources">
-                                    Sources: ${sourceText}
-                                </div>
-                                <div class="relationship-actions">
-                                    <button class="action-btn goto-btn" data-result-id="${resultId}" title="Go to result note">
-                                        Go
-                                    </button>
-                                    <button class="action-btn select-parents-btn" data-result-id="${resultId}" title="Select all parent notes">
-                                        Parents
-                                    </button>
-                                    <button class="action-btn rename-btn" data-result-id="${resultId}" title="Rename relationship">
-                                        Rename
-                                    </button>
-                                    <button class="action-btn delete-btn" data-result-id="${resultId}" title="Delete relationship and all related notes">
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        `;
+                    <div class="relationship-item ${calcData.operation}">
+                        <div class="relationship-header">
+                            <span class="goto-result" data-result-id="${resultId}" title="Click to go to result note" style="cursor: pointer;">
+                                ${calcData.operation.toUpperCase()}: ${resultContent}
+                            </span>
+                            <span class="relationship-name rename-result" data-result-id="${resultId}" title="Click to rename" style="cursor: pointer;">
+                                ${calcData.name || 'Unnamed'}
+                            </span>
+                        </div>
+                        <div class="relationship-sources">
+                            Sources: ${sourceText}
+                        </div>
+                        <div class="relationship-actions">
+                            <button class="action-btn goto-btn" data-result-id="${resultId}" title="Go to result note">
+                                Go
+                            </button>
+                            <button class="action-btn select-parents-btn" data-result-id="${resultId}" title="Select all parent notes">
+                                Parents
+                            </button>
+                            <button class="action-btn rename-btn" data-result-id="${resultId}" title="Rename relationship">
+                                Rename
+                            </button>
+                            <button class="action-btn delete-btn" data-result-id="${resultId}" title="Delete relationship and all related notes">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
                         displayedCount++;
                     }
 
@@ -1372,8 +1372,13 @@
             } else {
                 content.innerHTML = html;
 
-                // Add event delegation for relationship actions
-                content.addEventListener('click', function (event) {
+                // IMPORTANT: Remove any existing event listener before adding a new one
+                if (content.clickHandler) {
+                    content.removeEventListener('click', content.clickHandler);
+                }
+
+                // Create the handler function
+                content.clickHandler = function (event) {
                     const target = event.target;
                     const resultId = target.getAttribute('data-result-id');
 
@@ -1387,93 +1392,12 @@
                         startRename(resultId);
                     } else if (target.classList.contains('delete-btn')) {
                         deleteRelationship(resultId);
-                        content.removeEventListener('click', this);
-                        console.log('Removed event listener to prevent duplicates');
-                        }
-                });
-            }
-        }
-
-        // Continue with remaining helper functions...
-        window.goToResultNote = async function (resultId) {
-            try {
-                const resultNote = await miro.board.getById(resultId);
-                if (resultNote) {
-                    await miro.board.viewport.zoomTo(resultNote);
-                    await miro.board.select({ id: resultId });
-                    showStatus('Navigated to result note', 'success');
-                } else {
-                    showStatus('Result note not found', 'error');
-                }
-            } catch (error) {
-                console.error('Error navigating to result note:', error);
-                showStatus('Error: Result note may have been deleted', 'error');
-            }
-        }
-
-        window.selectParents = async function (resultId) {
-            try {
-                const calcData = calculatorNotes.get(resultId);
-                if (!calcData) {
-                    showStatus('Relationship not found', 'error');
-                    return;
-                }
-
-                const parentNotes = [];
-                let validParentCount = 0;
-
-                for (const sourceId of calcData.sourceIds) {
-                    try {
-                        const sourceNote = await miro.board.getById(sourceId);
-                        if (sourceNote) {
-                            parentNotes.push(sourceNote);
-                            validParentCount++;
-                        }
-                    } catch (error) {
-                        // Source note missing
                     }
-                }
+                };
 
-                if (parentNotes.length > 0) {
-                    await miro.board.select({ id: parentNotes.map(note => note.id) });
-                    await miro.board.viewport.zoomTo(parentNotes);
-                    showStatus(`Selected ${validParentCount} parent notes`, 'success');
-                } else {
-                    showStatus('No parent notes found', 'error');
-                }
-
-            } catch (error) {
-                console.error('Error selecting parent notes:', error);
-                showStatus('Error selecting parent notes: ' + error.message, 'error');
+                // Add the event listener (only one will be active)
+                content.addEventListener('click', content.clickHandler);
             }
-        }
-
-        window.startRename = function (resultId) {
-            currentRenamingId = resultId;
-            const calcData = calculatorNotes.get(resultId);
-            const currentName = calcData ? calcData.name : 'Unnamed';
-
-            const renameInput = document.getElementById('renameInput');
-            const renameModal = document.getElementById('renameModal');
-            if (renameInput) renameInput.value = currentName;
-            if (renameModal) renameModal.style.display = 'block';
-            if (renameInput) renameInput.focus();
-        }
-
-        function confirmRenameHandler() {
-            const renameInput = document.getElementById('renameInput');
-            const newName = renameInput ? renameInput.value.trim() : '';
-            if (newName && currentRenamingId) {
-                const calcData = calculatorNotes.get(currentRenamingId);
-                if (calcData) {
-                    calcData.name = newName;
-                    calculatorNotes.set(currentRenamingId, calcData);
-                    saveCalculatorData();
-                    updateRelationshipsList();
-                    showStatus('Relationship renamed', 'success');
-                }
-            }
-            cancelRenameHandler();
         }
 
         function cancelRenameHandler() {
