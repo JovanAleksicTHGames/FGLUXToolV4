@@ -1472,6 +1472,7 @@
                 }
 
                 const confirmMessage = `Delete relationship "${calcData.name}" and ALL related notes?\n\nThis will delete:\n- The result note (${calcData.operation})\n- All ${calcData.sourceIds.length} source notes\n\nThis action cannot be undone.`;
+                console.log(resultId);
 
                 if (!confirm(confirmMessage)) {
                     return;
