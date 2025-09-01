@@ -470,22 +470,20 @@
 
         async function init() {
             if (isInitialized) return;
-
             try {
                 if (typeof miro === 'undefined') {
                     setTimeout(init, 100);
                     return;
                 }
-
                 setupUI();
                 await loadGlobalVariables();
                 await loadCalculatorData();
                 await loadSpawnedResourcesData();
+                await autoCleanupCalculatorNotes();
+                await autoCleanupSpawnedResources();
                 updateRelationshipsCount();
                 updateNotesInRelationships();
-
                 isInitialized = true;
-
             } catch (error) {
                 console.error('Init error:', error);
                 setTimeout(init, 500);
@@ -533,6 +531,75 @@
                 for (const sourceId of calcData.sourceIds) {
                     notesInRelationships.add(sourceId);
                 }
+            }
+        }
+
+        // Remove relationships whose result or source notes no longer exist
+        async function autoCleanupCalculatorNotes() {
+            const validNotes = new Set();
+            const allItems = await miro.board.getAll();
+            for (const item of allItems) {
+                if (item.type === 'sticky_note') validNotes.add(item.id);
+            }
+
+            const toDelete = [];
+            for (const [resultId, calcData] of calculatorNotes.entries()) {
+                if (!validNotes.has(resultId)) {
+                    toDelete.push(resultId);
+                    continue;
+                }
+                let validSourceCount = 0;
+                for (const sourceId of calcData.sourceIds) {
+                    if (validNotes.has(sourceId)) validSourceCount++;
+                }
+                if (validSourceCount < 2) toDelete.push(resultId);
+            }
+            for (const resultId of toDelete) {
+                calculatorNotes.delete(resultId);
+            }
+        }
+
+        // Remove resources whose notes no longer exist
+        async function autoCleanupSpawnedResources() {
+            const validNotes = new Set();
+            const allItems = await miro.board.getAll();
+            for (const item of allItems) {
+                if (item.type === 'sticky_note') validNotes.add(item.id);
+            }
+
+            for (const [resourceType, resourceIds] of spawnedResources.entries()) {
+                const filtered = resourceIds.filter(id => validNotes.has(id));
+                spawnedResources.set(resourceType, filtered);
+            }
+        }
+
+        // Call these before saving appdata
+        async function saveCalculatorData() {
+            try {
+                await autoCleanupCalculatorNotes();
+                // Prune each relationship to only necessary fields
+                const pruned = {};
+                for (const [id, rel] of calculatorNotes.entries()) {
+                    pruned[id] = {
+                        operation: rel.operation,
+                        sourceIds: rel.sourceIds,
+                        name: rel.name,
+                        created: rel.created
+                    };
+                }
+                await miro.board.setAppData('calculatorNotes', pruned);
+            } catch (error) {
+                console.error('Error saving calculator data:', error);
+            }
+        }
+
+        async function saveSpawnedResourcesData() {
+            try {
+                await autoCleanupSpawnedResources();
+                const data = Object.fromEntries(spawnedResources);
+                await miro.board.setAppData('spawnedResources', data);
+            } catch (error) {
+                console.error('Error saving spawned resources data:', error);
             }
         }
 
