@@ -669,20 +669,9 @@
         async function calculate(operation) {
             try {
                 const selection = await miro.board.getSelection();
-                const validItems = [];
+                const validItems = selection.filter(item => item.type === 'sticky_note' && item.content);
 
-                // Filter out items that are already results of calculations
-                for (const item of selection) {
-                    if (item.type === 'sticky_note' && item.content) {
-                        // Skip if this item is a calculator result
-                        if (calculatorNotes.has(item.id)) {
-                            showStatus('Cannot use calculator results as sources. Please select only base notes.', 'error');
-                            return;
-                        }
-                        validItems.push(item);
-                    }
-                }
-
+                // Remove the restriction - now we CAN use calculator results as sources
                 const numbers = validItems
                     .map(item => {
                         if (!item.content) return null;
@@ -1200,12 +1189,14 @@
             }
         }
 
+
         function throttledRecheckAllCalculatorNotes() {
             const now = Date.now();
-            if (now - lastCalculatorCheck > 10000) {  // Increased from 5000ms to 10000ms
+            if (now - lastCalculatorCheck > 10000) {
                 lastCalculatorCheck = now;
                 recheckAllCalculatorNotes();
             }
+        } 
 
         async function updateUI() {
             try {
@@ -1794,8 +1785,7 @@
             } else {
                 init();
             }
-        }
-
+        
     </script>
 </body>
 </html>
