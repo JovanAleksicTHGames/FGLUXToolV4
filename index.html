@@ -631,8 +631,13 @@
                 if (cancelRename) cancelRename.addEventListener('click', cancelRenameHandler);
 
                 try {
+                    let selectionUpdateTimeout;
                     miro.board.ui.on('selection:update', () => {
-                        throttledUpdateUI();
+                        // Debounce the selection updates
+                        clearTimeout(selectionUpdateTimeout);
+                        selectionUpdateTimeout = setTimeout(() => {
+                            throttledUpdateUI();
+                        }, 500);  // Wait 500ms after selection stops changing
                     });
                 } catch (error) {
                     console.log('selection:update listener failed:', error);
@@ -1179,7 +1184,7 @@
 
         function throttledUpdateUI() {
             const now = Date.now();
-            if (now - lastUIUpdate > 1000) {
+            if (now - lastUIUpdate > 2000) {  // Increased from 1000ms to 2000ms
                 lastUIUpdate = now;
                 updateUI();
             }
@@ -1187,17 +1192,23 @@
 
         function throttledRecheckAllCalculatorNotes() {
             const now = Date.now();
-            if (now - lastCalculatorCheck > 5000) {
+            if (now - lastCalculatorCheck > 10000) {  // Increased from 5000ms to 10000ms
                 lastCalculatorCheck = now;
                 recheckAllCalculatorNotes();
             }
-        }
 
         async function updateUI() {
             try {
+                // Add a guard to prevent concurrent executions
+                if (updateUI.isRunning) {
+                    return;
+                }
+                updateUI.isRunning = true;
+
                 const selection = await miro.board.getSelection();
 
                 if (!selection || !Array.isArray(selection)) {
+                    updateUI.isRunning = false;
                     return;
                 }
 
@@ -1252,7 +1263,21 @@
                 }
 
             } catch (error) {
-                console.error('Error in updateUI:', error);
+                // Only log rate limit errors once
+                if (error.message && error.message.includes('rate limit')) {
+                    if (!updateUI.rateLimitLogged) {
+                        console.error('Rate limit reached, slowing down updates');
+                        updateUI.rateLimitLogged = true;
+                        // Reset the flag after a minute
+                        setTimeout(() => {
+                            updateUI.rateLimitLogged = false;
+                        }, 60000);
+                    }
+                } else {
+                    console.error('Error in updateUI:', error);
+                }
+            } finally {
+                updateUI.isRunning = false;
             }
         }
 
