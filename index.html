@@ -1723,8 +1723,17 @@
 
         async function saveCalculatorData() {
             try {
-                const data = Object.fromEntries(calculatorNotes);
-                await miro.board.setAppData('calculatorNotes', data);
+                // Prune each relationship to only necessary fields
+                const pruned = {};
+                for (const [id, rel] of calculatorNotes.entries()) {
+                    pruned[id] = {
+                        operation: rel.operation,
+                        sourceIds: rel.sourceIds,
+                        name: rel.name,
+                        created: rel.created
+                    };
+                }
+                await miro.board.setAppData('calculatorNotes', pruned);
             } catch (error) {
                 console.error('Error saving calculator data:', error);
             }
