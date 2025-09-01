@@ -564,41 +564,51 @@
                 const digValueInput = document.getElementById('digValue');
                 const crateValueInput = document.getElementById('crateValue');
 
-                if (barrelSmallInput) barrelSmallInput.addEventListener('input', () => {
-                    const value = parseInt(barrelSmallInput.value);
-                    globalVariables.barrelSmall = value > 0 ? value : 5;
-                    if (value <= 0) barrelSmallInput.value = 5;
-                    saveGlobalVariables();
-                    updateResourceValues('barrel-small');
-                });
-                if (barrelMediumInput) barrelMediumInput.addEventListener('input', () => {
-                    const value = parseInt(barrelMediumInput.value);
-                    globalVariables.barrelMedium = value > 0 ? value : 10;
-                    if (value <= 0) barrelMediumInput.value = 10;
-                    saveGlobalVariables();
-                    updateResourceValues('barrel-medium');
-                });
-                if (barrelBigInput) barrelBigInput.addEventListener('input', () => {
-                    const value = parseInt(barrelBigInput.value);
-                    globalVariables.barrelBig = value > 0 ? value : 20;
-                    if (value <= 0) barrelBigInput.value = 20;
-                    saveGlobalVariables();
-                    updateResourceValues('barrel-big');
-                });
-                if (digValueInput) digValueInput.addEventListener('input', () => {
-                    const value = parseInt(digValueInput.value);
-                    globalVariables.digValue = value > 0 ? value : 3;
-                    if (value <= 0) digValueInput.value = 3;
-                    saveGlobalVariables();
-                    updateResourceValues('dig');
-                });
-                if (crateValueInput) crateValueInput.addEventListener('input', () => {
-                    const value = parseInt(crateValueInput.value);
-                    globalVariables.crateValue = value > 0 ? value : 15;
-                    if (value <= 0) crateValueInput.value = 15;
-                    saveGlobalVariables();
-                    updateResourceValues('crate');
-                });
+                if (barrelSmallInput) {
+                    barrelSmallInput.addEventListener('input', () => {
+                        const value = parseInt(barrelSmallInput.value);
+                        globalVariables.barrelSmall = value > 0 ? value : 5;
+                        if (value <= 0) barrelSmallInput.value = 5;
+                        saveGlobalVariables();
+                        updateResourceValues('barrel-small');
+                    });
+                }
+                if (barrelMediumInput) {
+                    barrelMediumInput.addEventListener('input', () => {
+                        const value = parseInt(barrelMediumInput.value);
+                        globalVariables.barrelMedium = value > 0 ? value : 10;
+                        if (value <= 0) barrelMediumInput.value = 10;
+                        saveGlobalVariables();
+                        updateResourceValues('barrel-medium');
+                    });
+                }
+                if (barrelBigInput) {
+                    barrelBigInput.addEventListener('input', () => {
+                        const value = parseInt(barrelBigInput.value);
+                        globalVariables.barrelBig = value > 0 ? value : 20;
+                        if (value <= 0) barrelBigInput.value = 20;
+                        saveGlobalVariables();
+                        updateResourceValues('barrel-big');
+                    });
+                }
+                if (digValueInput) {
+                    digValueInput.addEventListener('input', () => {
+                        const value = parseInt(digValueInput.value);
+                        globalVariables.digValue = value > 0 ? value : 3;
+                        if (value <= 0) digValueInput.value = 3;
+                        saveGlobalVariables();
+                        updateResourceValues('dig');
+                    });
+                }
+                if (crateValueInput) {
+                    crateValueInput.addEventListener('input', () => {
+                        const value = parseInt(crateValueInput.value);
+                        globalVariables.crateValue = value > 0 ? value : 15;
+                        if (value <= 0) crateValueInput.value = 15;
+                        saveGlobalVariables();
+                        updateResourceValues('crate');
+                    });
+                }
 
                 const createResourcePoolBtn = document.getElementById('createResourcePool');
                 if (createResourcePoolBtn) createResourcePoolBtn.addEventListener('click', createResourcePoolHandler);
@@ -637,7 +647,7 @@
                         clearTimeout(selectionUpdateTimeout);
                         selectionUpdateTimeout = setTimeout(() => {
                             throttledUpdateUI();
-                        }, 500);  // Wait 500ms after selection stops changing
+                        }, 500);
                     });
                 } catch (error) {
                     console.log('selection:update listener failed:', error);
@@ -1779,13 +1789,12 @@
         }
 
         // Initialize when the page loads
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
         }
-
-        
 
     </script>
 </body>
