@@ -1312,34 +1312,34 @@
                         const sourceText = sourceInfos.join(` ${operationSymbol} `);
 
                         html += `
-                    <div class="relationship-item ${calcData.operation}">
-                        <div class="relationship-header">
-                            <span class="goto-result" data-result-id="${resultId}" title="Click to go to result note" style="cursor: pointer;">
-                                ${calcData.operation.toUpperCase()}: ${resultContent}
-                            </span>
-                            <span class="relationship-name rename-result" data-result-id="${resultId}" title="Click to rename" style="cursor: pointer;">
-                                ${calcData.name || 'Unnamed'}
-                            </span>
-                        </div>
-                        <div class="relationship-sources">
-                            Sources: ${sourceText}
-                        </div>
-                        <div class="relationship-actions">
-                            <button class="action-btn goto-btn" data-result-id="${resultId}" title="Go to result note">
-                                Go
-                            </button>
-                            <button class="action-btn select-parents-btn" data-result-id="${resultId}" title="Select all parent notes">
-                                Parents
-                            </button>
-                            <button class="action-btn rename-btn" data-result-id="${resultId}" title="Rename relationship">
-                                Rename
-                            </button>
-                            <button class="action-btn delete-btn" data-result-id="${resultId}" title="Delete relationship and all related notes">
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                `;
+                            <div class="relationship-item ${calcData.operation}">
+                                <div class="relationship-header">
+                                    <span class="goto-result" data-result-id="${resultId}" title="Click to go to result note" style="cursor: pointer;">
+                                        ${calcData.operation.toUpperCase()}: ${resultContent}
+                                    </span>
+                                    <span class="relationship-name rename-result" data-result-id="${resultId}" title="Click to rename" style="cursor: pointer;">
+                                        ${calcData.name || 'Unnamed'}
+                                    </span>
+                                </div>
+                                <div class="relationship-sources">
+                                    Sources: ${sourceText}
+                                </div>
+                                <div class="relationship-actions">
+                                    <button class="action-btn goto-btn" data-result-id="${resultId}" title="Go to result note">
+                                        Go
+                                    </button>
+                                    <button class="action-btn select-parents-btn" data-result-id="${resultId}" title="Select all parent notes">
+                                        Parents
+                                    </button>
+                                    <button class="action-btn rename-btn" data-result-id="${resultId}" title="Rename relationship">
+                                        Rename
+                                    </button>
+                                    <button class="action-btn delete-btn" data-result-id="${resultId}" title="Delete relationship and all related notes">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        `;
                         displayedCount++;
                     }
 
@@ -1368,9 +1368,10 @@
                         startRename(resultId);
                     } else if (target.classList.contains('delete-btn')) {
                         deleteRelationship(resultId);
+                        content.removeEventListener('click', arguments.callee);
                     }
-                });
-            }
+            });
+                    }
         }
 
         // Continue with remaining helper functions...
