@@ -1011,6 +1011,18 @@
                 const startX = centerX - ((quantity - 1) * spacing / 2);
                 const resourceNotes = [];
 
+                // Clean up old resources before adding new ones
+                if (!spawnedResources.has(resourceType)) {
+                    spawnedResources.set(resourceType, []);
+                }
+
+                // Limit stored resource IDs to last 20 per type
+                let existingIds = spawnedResources.get(resourceType) || [];
+                if (existingIds.length > 20) {
+                    existingIds = existingIds.slice(-20);
+                    spawnedResources.set(resourceType, existingIds);
+                }
+
                 for (let i = 0; i < quantity; i++) {
                     const resource = await miro.board.createStickyNote({
                         content: content,
@@ -1020,11 +1032,14 @@
                     });
                     resourceNotes.push(resource);
 
-                    if (!spawnedResources.has(resourceType)) {
-                        spawnedResources.set(resourceType, []);
+                    // Only store the last 30 resource IDs per type
+                    existingIds.push(resource.id);
+                    if (existingIds.length > 30) {
+                        existingIds.shift(); // Remove oldest
                     }
-                    spawnedResources.get(resourceType).push(resource.id);
                 }
+
+                spawnedResources.set(resourceType, existingIds);
 
                 const totalValue = parseInt(value) * quantity;
                 const lastResource = resourceNotes[resourceNotes.length - 1];
@@ -1065,7 +1080,47 @@
 
             } catch (error) {
                 console.error('Error creating resource pool:', error);
-                showStatus('Error creating resource pool: ' + error.message, 'error');
+                if (error.message && error.message.includes('storage limit')) {
+                    // Clear spawned resources and try again
+                    spawnedResources = new Map();
+                    await miro.board.setAppData('spawnedResources', {});
+                    showStatus('Storage was full, cleared old resources. Please try again.', 'error');
+                } else {
+                    showStatus('Error creating resource pool: ' + error.message, 'error');
+                }
+            }
+        }
+
+        // Also update saveSpawnedResourcesData to be more aggressive about limiting data
+        async function saveSpawnedResourcesData() {
+            try {
+                // Limit each resource type to 30 items maximum
+                for (const [type, ids] of spawnedResources.entries()) {
+                    if (ids.length > 30) {
+                        spawnedResources.set(type, ids.slice(-30));
+                    }
+                }
+
+                const data = Object.fromEntries(spawnedResources);
+                await miro.board.setAppData('spawnedResources', data);
+            } catch (error) {
+                if (error.message && error.message.includes('storage limit')) {
+                    // If still too large, keep only 10 most recent of each type
+                    for (const [type, ids] of spawnedResources.entries()) {
+                        spawnedResources.set(type, ids.slice(-10));
+                    }
+                    const reducedData = Object.fromEntries(spawnedResources);
+                    try {
+                        await miro.board.setAppData('spawnedResources', reducedData);
+                    } catch (retryError) {
+                        // If still failing, clear everything
+                        spawnedResources = new Map();
+                        await miro.board.setAppData('spawnedResources', {});
+                        console.error('Had to clear all spawned resources due to storage limits');
+                    }
+                } else {
+                    console.error('Error saving spawned resources data:', error);
+                }
             }
         }
 
