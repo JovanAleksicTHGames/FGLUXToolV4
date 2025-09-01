@@ -1188,7 +1188,7 @@
 
         function throttledRecheckAllCalculatorNotes() {
             const now = Date.now();
-            if (now - lastCalculatorCheck > 5000) {
+            if (now - lastCalculatorCheck > 1000) {
                 lastCalculatorCheck = now;
                 recheckAllCalculatorNotes();
             }
