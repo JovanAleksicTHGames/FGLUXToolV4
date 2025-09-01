@@ -440,7 +440,7 @@
     </div>
 
     <script>
-        // Insert the JavaScript code here
+        //Insert JavaScript code here
         let isInitialized = false;
         let calculatorNotes = new Map();
         let spawnedResources = new Map();
@@ -470,20 +470,22 @@
 
         async function init() {
             if (isInitialized) return;
+
             try {
                 if (typeof miro === 'undefined') {
                     setTimeout(init, 100);
                     return;
                 }
+
                 setupUI();
                 await loadGlobalVariables();
                 await loadCalculatorData();
                 await loadSpawnedResourcesData();
-                await autoCleanupCalculatorNotes();
-                await autoCleanupSpawnedResources();
                 updateRelationshipsCount();
                 updateNotesInRelationships();
+
                 isInitialized = true;
+
             } catch (error) {
                 console.error('Init error:', error);
                 setTimeout(init, 500);
@@ -531,75 +533,6 @@
                 for (const sourceId of calcData.sourceIds) {
                     notesInRelationships.add(sourceId);
                 }
-            }
-        }
-
-        // Remove relationships whose result or source notes no longer exist
-        async function autoCleanupCalculatorNotes() {
-            const validNotes = new Set();
-            const allItems = await miro.board.getAll();
-            for (const item of allItems) {
-                if (item.type === 'sticky_note') validNotes.add(item.id);
-            }
-
-            const toDelete = [];
-            for (const [resultId, calcData] of calculatorNotes.entries()) {
-                if (!validNotes.has(resultId)) {
-                    toDelete.push(resultId);
-                    continue;
-                }
-                let validSourceCount = 0;
-                for (const sourceId of calcData.sourceIds) {
-                    if (validNotes.has(sourceId)) validSourceCount++;
-                }
-                if (validSourceCount < 2) toDelete.push(resultId);
-            }
-            for (const resultId of toDelete) {
-                calculatorNotes.delete(resultId);
-            }
-        }
-
-        // Remove resources whose notes no longer exist
-        async function autoCleanupSpawnedResources() {
-            const validNotes = new Set();
-            const allItems = await miro.board.getAll();
-            for (const item of allItems) {
-                if (item.type === 'sticky_note') validNotes.add(item.id);
-            }
-
-            for (const [resourceType, resourceIds] of spawnedResources.entries()) {
-                const filtered = resourceIds.filter(id => validNotes.has(id));
-                spawnedResources.set(resourceType, filtered);
-            }
-        }
-
-        // Call these before saving appdata
-        async function saveCalculatorData() {
-            try {
-                await autoCleanupCalculatorNotes();
-                // Prune each relationship to only necessary fields
-                const pruned = {};
-                for (const [id, rel] of calculatorNotes.entries()) {
-                    pruned[id] = {
-                        operation: rel.operation,
-                        sourceIds: rel.sourceIds,
-                        name: rel.name,
-                        created: rel.created
-                    };
-                }
-                await miro.board.setAppData('calculatorNotes', pruned);
-            } catch (error) {
-                console.error('Error saving calculator data:', error);
-            }
-        }
-
-        async function saveSpawnedResourcesData() {
-            try {
-                await autoCleanupSpawnedResources();
-                const data = Object.fromEntries(spawnedResources);
-                await miro.board.setAppData('spawnedResources', data);
-            } catch (error) {
-                console.error('Error saving spawned resources data:', error);
             }
         }
 
@@ -812,7 +745,6 @@
                 showStatus('Error: ' + error.message, 'error');
             }
         }
-
 
         async function expandRelationship() {
             try {
@@ -1379,34 +1311,34 @@
                         const sourceText = sourceInfos.join(` ${operationSymbol} `);
 
                         html += `
-                            <div class="relationship-item ${calcData.operation}">
-                                <div class="relationship-header">
-                                    <span class="goto-result" data-result-id="${resultId}" title="Click to go to result note" style="cursor: pointer;">
-                                        ${calcData.operation.toUpperCase()}: ${resultContent}
-                                    </span>
-                                    <span class="relationship-name rename-result" data-result-id="${resultId}" title="Click to rename" style="cursor: pointer;">
-                                        ${calcData.name || 'Unnamed'}
-                                    </span>
-                                </div>
-                                <div class="relationship-sources">
-                                    Sources: ${sourceText}
-                                </div>
-                                <div class="relationship-actions">
-                                    <button class="action-btn goto-btn" data-result-id="${resultId}" title="Go to result note">
-                                        Go
-                                    </button>
-                                    <button class="action-btn select-parents-btn" data-result-id="${resultId}" title="Select all parent notes">
-                                        Parents
-                                    </button>
-                                    <button class="action-btn rename-btn" data-result-id="${resultId}" title="Rename relationship">
-                                        Rename
-                                    </button>
-                                    <button class="action-btn delete-btn" data-result-id="${resultId}" title="Delete relationship and all related notes">
-                                        Delete
-                                    </button>
-                                </div>
+                        <div class="relationship-item ${calcData.operation}">
+                            <div class="relationship-header">
+                                <span class="goto-result" data-result-id="${resultId}" title="Click to go to result note" style="cursor: pointer;">
+                                    ${calcData.operation.toUpperCase()}: ${resultContent}
+                                </span>
+                                <span class="relationship-name rename-result" data-result-id="${resultId}" title="Click to rename" style="cursor: pointer;">
+                                    ${calcData.name || 'Unnamed'}
+                                </span>
                             </div>
-                        `;
+                            <div class="relationship-sources">
+                                Sources: ${sourceText}
+                            </div>
+                            <div class="relationship-actions">
+                                <button class="action-btn goto-btn" data-result-id="${resultId}" title="Go to result note">
+                                    Go
+                                </button>
+                                <button class="action-btn select-parents-btn" data-result-id="${resultId}" title="Select all parent notes">
+                                    Parents
+                                </button>
+                                <button class="action-btn rename-btn" data-result-id="${resultId}" title="Rename relationship">
+                                    Rename
+                                </button>
+                                <button class="action-btn delete-btn" data-result-id="${resultId}" title="Delete relationship and all related notes">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    `;
                         displayedCount++;
                     }
 
@@ -1435,10 +1367,10 @@
                         startRename(resultId);
                     } else if (target.classList.contains('delete-btn')) {
                         deleteRelationship(resultId);
-                        content.removeEventListener('click', arguments.callee);
+                        content.removeEventListener('click', this);
                     }
-            });
-                    }
+                });
+            }
         }
 
         // Continue with remaining helper functions...
@@ -1540,7 +1472,6 @@
                 }
 
                 const confirmMessage = `Delete relationship "${calcData.name}" and ALL related notes?\n\nThis will delete:\n- The result note (${calcData.operation})\n- All ${calcData.sourceIds.length} source notes\n\nThis action cannot be undone.`;
-                console.log(resultId);
 
                 if (!confirm(confirmMessage)) {
                     return;
@@ -1653,13 +1584,6 @@
                     if (resultItem) {
                         resultItem.content = newResult.toString();
                         await resultItem.sync();
-
-                        // Trigger recalculation of any dependent calculations
-                        for (const [otherId, otherData] of calculatorNotes.entries()) {
-                            if (otherData.sourceIds.includes(resultId)) {
-                                await recalculateResult(otherId, otherData);
-                            }
-                        }
                     }
                 } catch (error) {
                     calculatorNotes.delete(resultId);
@@ -1720,65 +1644,12 @@
         async function recheckAllCalculatorNotes() {
             try {
                 await verifyAndCleanupRelationships();
-
-                // Create a map to track which notes need recalculation
-                const needsRecalc = new Set();
-
-                // First pass: identify all notes that need recalculation
                 for (const [resultId, calcData] of calculatorNotes.entries()) {
-                    needsRecalc.add(resultId);
+                    await recalculateResult(resultId, calcData);
                 }
-
-                // Keep recalculating until no changes occur (to handle cascading updates)
-                let hasChanges = true;
-                let iterations = 0;
-                const maxIterations = 10; // Prevent infinite loops
-
-                while (hasChanges && iterations < maxIterations) {
-                    hasChanges = false;
-                    iterations++;
-
-                    for (const resultId of needsRecalc) {
-                        const calcData = calculatorNotes.get(resultId);
-                        if (calcData) {
-                            const oldValue = await getNodeValue(resultId);
-                            await recalculateResult(resultId, calcData);
-                            const newValue = await getNodeValue(resultId);
-
-                            if (oldValue !== newValue) {
-                                hasChanges = true;
-                                // Find any calculations that depend on this result
-                                for (const [otherId, otherData] of calculatorNotes.entries()) {
-                                    if (otherData.sourceIds.includes(resultId)) {
-                                        needsRecalc.add(otherId);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
             } catch (error) {
                 console.error('Error in recheckAllCalculatorNotes:', error);
             }
-        }
-
-        //new helper function
-        async function getNodeValue(nodeId) {
-            try {
-                const node = await miro.board.getById(nodeId);
-                if (node && node.content) {
-                    const cleanContent = node.content.replace(/<[^>]*>/g, '').trim();
-                    const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
-                    if (match) {
-                        return match[1];
-                    }
-                    return cleanContent;
-                }
-            } catch (error) {
-                // Node doesn't exist
-            }
-            return null;
         }
 
         function updateRelationshipsCount() {
@@ -1790,17 +1661,8 @@
 
         async function saveCalculatorData() {
             try {
-                // Prune each relationship to only necessary fields
-                const pruned = {};
-                for (const [id, rel] of calculatorNotes.entries()) {
-                    pruned[id] = {
-                        operation: rel.operation,
-                        sourceIds: rel.sourceIds,
-                        name: rel.name,
-                        created: rel.created
-                    };
-                }
-                await miro.board.setAppData('calculatorNotes', pruned);
+                const data = Object.fromEntries(calculatorNotes);
+                await miro.board.setAppData('calculatorNotes', data);
             } catch (error) {
                 console.error('Error saving calculator data:', error);
             }
