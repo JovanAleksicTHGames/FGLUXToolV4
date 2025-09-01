@@ -674,7 +674,6 @@
                 const selection = await miro.board.getSelection();
                 const validItems = selection.filter(item => item.type === 'sticky_note' && item.content);
 
-                // Remove the restriction - now we CAN use calculator results as sources
                 const numbers = validItems
                     .map(item => {
                         if (!item.content) return null;
@@ -1215,9 +1214,16 @@
 
         async function updateUI() {
             try {
+                // Add a guard to prevent concurrent executions
+                if (updateUI.isRunning) {
+                    return;
+                }
+                updateUI.isRunning = true;
+
                 const selection = await miro.board.getSelection();
 
                 if (!selection || !Array.isArray(selection)) {
+                    updateUI.isRunning = false;
                     return;
                 }
 
@@ -1230,6 +1236,15 @@
                     if (item.type === 'sticky_note') {
                         if (calculatorNotes.has(item.id)) {
                             hasCalculatorResult = true;
+                            // Also add calculator results to numbers array for chaining
+                            if (item.content) {
+                                let cleanContent = item.content.trim();
+                                cleanContent = cleanContent.replace(/<[^>]*>/g, '');
+                                const num = parseFloat(cleanContent);
+                                if (!isNaN(num)) {
+                                    numbers.push(num);
+                                }
+                            }
                         } else if (item.content) {
                             let cleanContent = item.content.trim();
                             cleanContent = cleanContent.replace(/<[^>]*>/g, '');
@@ -1272,131 +1287,21 @@
                 }
 
             } catch (error) {
-                console.error('Error in updateUI:', error);
-            }
-        }
-
-        async function updateRelationshipsList() {
-            const content = document.getElementById('relationshipsContent');
-            if (!content) return;
-
-            await verifyAndCleanupRelationships();
-
-            if (calculatorNotes.size === 0) {
-                content.innerHTML = 'No calculator relationships found';
-                return;
-            }
-
-            let html = '';
-            let displayedCount = 0;
-
-            for (const [resultId, calcData] of calculatorNotes.entries()) {
-                try {
-                    let resultContent = 'Loading...';
-                    let resultExists = false;
-
-                    try {
-                        const resultNote = await miro.board.getById(resultId);
-                        if (resultNote && resultNote.content) {
-                            resultContent = resultNote.content.replace(/<[^>]*>/g, '').trim();
-                            resultExists = true;
-                        }
-                    } catch (error) {
-                        continue;
+                // Only log rate limit errors once
+                if (error.message && error.message.includes('rate limit')) {
+                    if (!updateUI.rateLimitLogged) {
+                        console.error('Rate limit reached, slowing down updates');
+                        updateUI.rateLimitLogged = true;
+                        // Reset the flag after a minute
+                        setTimeout(() => {
+                            updateUI.rateLimitLogged = false;
+                        }, 60000);
                     }
-
-                    const sourceInfos = [];
-                    let validSourceCount = 0;
-
-                    for (const sourceId of calcData.sourceIds) {
-                        try {
-                            const sourceNote = await miro.board.getById(sourceId);
-                            if (sourceNote && sourceNote.content) {
-                                const content = sourceNote.content.replace(/<[^>]*>/g, '').trim();
-                                const match = content.match(/\((\d+)\)/) || content.match(/^(\d+)$/);
-                                if (match) {
-                                    sourceInfos.push(match[1]);
-                                } else {
-                                    sourceInfos.push(content);
-                                }
-                                validSourceCount++;
-                            }
-                        } catch (error) {
-                            // Source note missing
-                        }
-                    }
-
-                    if (resultExists && validSourceCount >= 2) {
-                        const operationSymbol = calcData.operation === 'sum' ? '+' : '×';
-                        const sourceText = sourceInfos.join(` ${operationSymbol} `);
-
-                        html += `
-                    <div class="relationship-item ${calcData.operation}">
-                        <div class="relationship-header">
-                            <span class="goto-result" data-result-id="${resultId}" title="Click to go to result note" style="cursor: pointer;">
-                                ${calcData.operation.toUpperCase()}: ${resultContent}
-                            </span>
-                            <span class="relationship-name rename-result" data-result-id="${resultId}" title="Click to rename" style="cursor: pointer;">
-                                ${calcData.name || 'Unnamed'}
-                            </span>
-                        </div>
-                        <div class="relationship-sources">
-                            Sources: ${sourceText}
-                        </div>
-                        <div class="relationship-actions">
-                            <button class="action-btn goto-btn" data-result-id="${resultId}" title="Go to result note">
-                                Go
-                            </button>
-                            <button class="action-btn select-parents-btn" data-result-id="${resultId}" title="Select all parent notes">
-                                Parents
-                            </button>
-                            <button class="action-btn rename-btn" data-result-id="${resultId}" title="Rename relationship">
-                                Rename
-                            </button>
-                            <button class="action-btn delete-btn" data-result-id="${resultId}" title="Delete relationship and all related notes">
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                `;
-                        displayedCount++;
-                    }
-
-                } catch (error) {
-                    console.error('Error displaying relationship:', error);
+                } else {
+                    console.error('Error in updateUI:', error);
                 }
-            }
-
-            if (displayedCount === 0) {
-                content.innerHTML = 'No valid calculator relationships found';
-            } else {
-                content.innerHTML = html;
-
-                // IMPORTANT: Remove any existing event listener before adding a new one
-                if (content.clickHandler) {
-                    content.removeEventListener('click', content.clickHandler);
-                }
-
-                // Create the handler function
-                content.clickHandler = function (event) {
-                    const target = event.target;
-                    const resultId = target.getAttribute('data-result-id');
-
-                    if (!resultId) return;
-
-                    if (target.classList.contains('goto-btn') || target.classList.contains('goto-result')) {
-                        goToResultNote(resultId);
-                    } else if (target.classList.contains('select-parents-btn')) {
-                        selectParents(resultId);
-                    } else if (target.classList.contains('rename-btn') || target.classList.contains('rename-result')) {
-                        startRename(resultId);
-                    } else if (target.classList.contains('delete-btn')) {
-                        deleteRelationship(resultId);
-                    }
-                };
-
-                // Add the event listener (only one will be active)
-                content.addEventListener('click', content.clickHandler);
+            } finally {
+                updateUI.isRunning = false;
             }
         }
 
