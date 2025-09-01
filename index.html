@@ -357,7 +357,7 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container"> </div>
         <h3>Miro Resource Calculator</h3>
 
         <div class="section">
@@ -416,6 +416,11 @@
             <button id="spawnBtn" class="btn-spawn">Spawn Connected Numbers</button>
         </div>
 
+        <!-- Add this section after "Spawn Numbers" and before "Relationships Section" -->
+        <div class="section"> </div>
+            <div class="section-title">Add Custom Sticky Note</div>
+            <input type="text" id="customNoteContent" class="spawn-input" placeholder="Enter text and/or number">
+            <button id="addCustomNoteBtn" class="btn-spawn">Add Sticky Note</button>
         <div class="relationships-section">
             <button id="toggleRelationships" class="toggle-btn">
                 ▼ Show Relationships (<span id="relationshipCount">0</span>)
@@ -425,6 +430,9 @@
             </div>
         </div>
 
+        <div class="relationships-section">
+            <button id="toggleRelationships" class="toggle-btn">
+                ▼ Show Relationships (<span id="relationshipCount">0</span>) <</button>>
         <div id="status"></div>
     </div>
 
@@ -441,6 +449,208 @@
 
     <script>
         // Insert the JavaScript code here
+        let isInitialized = false;
+        let calculatorNotes = new Map();
+        let spawnedResources = new Map();
+        let lastUIUpdate = 0;
+        let lastCalculatorCheck = 0;
+        let currentRenamingId = null;
+        let globalVariables = {
+            barrelSmall: 5,
+            barrelMedium: 10,
+            barrelBig: 20,
+            digValue: 3,
+            crateValue: 15
+        };
+
+        // Set to track which notes are used as sources in relationships
+        let notesInRelationships = new Set();
+
+        miro.board.ui.on('icon:click', async () => {
+            try {
+                await miro.board.ui.openPanel({
+                    url: 'https://fglux-tool-v4.vercel.app/'
+                });
+            } catch (error) {
+                console.error('Error opening panel:', error);
+            }
+        });
+
+        async function init() {
+            if (isInitialized) return;
+
+            try {
+                if (typeof miro === 'undefined') {
+                    setTimeout(init, 100);
+                    return;
+                }
+
+                setupUI();
+                await loadGlobalVariables();
+                await loadCalculatorData();
+                await loadSpawnedResourcesData();
+                updateRelationshipsCount();
+                updateNotesInRelationships();
+
+                isInitialized = true;
+
+            } catch (error) {
+                console.error('Init error:', error);
+                setTimeout(init, 500);
+            }
+        }
+
+        // Save and load global variables
+        async function saveGlobalVariables() {
+            try {
+                await miro.board.setAppData('globalVariables', globalVariables);
+            } catch (error) {
+                console.error('Error saving global variables:', error);
+            }
+        }
+
+        async function loadGlobalVariables() {
+            try {
+                const data = await miro.board.getAppData('globalVariables');
+                if (data) {
+                    globalVariables = data;
+                    // Update UI with saved values
+                    const inputs = {
+                        barrelSmall: document.getElementById('barrelSmall'),
+                        barrelMedium: document.getElementById('barrelMedium'),
+                        barrelBig: document.getElementById('barrelBig'),
+                        digValue: document.getElementById('digValue'),
+                        crateValue: document.getElementById('crateValue')
+                    };
+
+                    for (const [key, input] of Object.entries(inputs)) {
+                        if (input && globalVariables[key]) {
+                            input.value = globalVariables[key];
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading global variables:', error);
+            }
+        }
+
+        function updateNotesInRelationships() {
+            notesInRelationships.clear();
+            for (const [resultId, calcData] of calculatorNotes.entries()) {
+                // Add all source notes to the set
+                for (const sourceId of calcData.sourceIds) {
+                    notesInRelationships.add(sourceId);
+                }
+            }
+        }
+
+        function setupUI() {
+            try {
+                const sumBtn = document.getElementById('sumBtn');
+                const productBtn = document.getElementById('productBtn');
+                const expandBtn = document.getElementById('expandBtn');
+
+                if (sumBtn) sumBtn.addEventListener('click', () => calculate('sum'));
+                if (productBtn) productBtn.addEventListener('click', () => calculate('product'));
+                if (expandBtn) expandBtn.addEventListener('click', expandRelationship);
+
+                const createBarrelSmall = document.getElementById('createBarrelSmall');
+                const createBarrelMedium = document.getElementById('createBarrelMedium');
+                const createBarrelBig = document.getElementById('createBarrelBig');
+                const createDig = document.getElementById('createDig');
+                const createCrate = document.getElementById('createCrate');
+
+                if (createBarrelSmall) createBarrelSmall.addEventListener('click', () => createResource('barrel', 'small'));
+                if (createBarrelMedium) createBarrelMedium.addEventListener('click', () => createResource('barrel', 'medium'));
+                if (createBarrelBig) createBarrelBig.addEventListener('click', () => createResource('barrel', 'big'));
+                if (createDig) createDig.addEventListener('click', () => createResource('dig', 'standard'));
+                if (createCrate) createCrate.addEventListener('click', () => createResource('crate', 'standard'));
+
+                const barrelSmallInput = document.getElementById('barrelSmall');
+                const barrelMediumInput = document.getElementById('barrelMedium');
+                const barrelBigInput = document.getElementById('barrelBig');
+                const digValueInput = document.getElementById('digValue');
+                const crateValueInput = document.getElementById('crateValue');
+
+                if (barrelSmallInput) {
+                    barrelSmallInput.addEventListener('input', () => {
+                        const value = parseInt(barrelSmallInput.value);
+                        globalVariables.barrelSmall = value > 0 ? value : 5;
+                        if (value <= 0) barrelSmallInput.value = 5;
+                        saveGlobalVariables();
+                        updateResourceValues('barrel-small');
+                    });
+                }
+                if (barrelMediumInput) {
+                    barrelMediumInput.addEventListener('input', () => {
+                        const value = parseInt(barrelMediumInput.value);
+                        globalVariables.barrelMedium = value > 0 ? value : 10;
+                        if (value <= 0) barrelMediumInput.value = 10;
+                        saveGlobalVariables();
+                        updateResourceValues('barrel-medium');
+                    });
+                }
+                if (barrelBigInput) {
+                    barrelBigInput.addEventListener('input', () => {
+                        const value = parseInt(barrelBigInput.value);
+                        globalVariables.barrelBig = value > 0 ? value : 20;
+                        if (value <= 0) barrelBigInput.value = 20;
+                        saveGlobalVariables();
+                        updateResourceValues('barrel-big');
+                    });
+                }
+                if (digValueInput) {
+                    digValueInput.addEventListener('input', () => {
+                        const value = parseInt(digValueInput.value);
+                        globalVariables.digValue = value > 0 ? value : 3;
+                        if (value <= 0) digValueInput.value = 3;
+                        saveGlobalVariables();
+                        updateResourceValues('dig');
+                    });
+                }
+                if (crateValueInput) {
+                    crateValueInput.addEventListener('input', () => {
+                        const value = parseInt(crateValueInput.value);
+                        globalVariables.crateValue = value > 0 ? value : 15;
+                        if (value <= 0) crateValueInput.value = 15;
+                        saveGlobalVariables();
+                        updateResourceValues('crate');
+                    });
+                }
+
+                const createResourcePoolBtn = document.getElementById('createResourcePool');
+                if (createResourcePoolBtn) createResourcePoolBtn.addEventListener('click', createResourcePoolHandler);
+
+                const spawnBtn = document.getElementById('spawnBtn');
+                if (spawnBtn) spawnBtn.addEventListener('click', spawnConnectedNumbers);
+
+                const toggleBtn = document.getElementById('toggleRelationships');
+                const relationshipsList = document.getElementById('relationshipsList');
+
+                if (toggleBtn && relationshipsList) {
+                    toggleBtn.addEventListener('click', () => {
+                        const isVisible = relationshipsList.style.display !== 'none';
+                        relationshipsList.style.display = isVisible ? 'none' : 'block';
+                        const countSpan = document.getElementById('relationshipCount');
+                        const count = countSpan ? countSpan.textContent : '0';
+                        toggleBtn.innerHTML = isVisible
+                            ? `▼ Show Relationships (<span id="relationshipCount">${count}</span>)`
+                            : `▲ Hide Relationships (<span id="relationshipCount">${count}</span>)`;
+
+                        if (!isVisible) {
+                            updateRelationshipsList();
+                        }
+                    });
+                }
+
+                const confirmRename = document.getElementById('confirmRename');
+                const cancelRename = document.getElementById('cancelRename');
+                if (confirmRename) confirmRename.addEventListener('click', confirmRenameHandler);
+                if (cancelRename) cancelRename.addEventListener('click', cancelRenameHandler);
+
+                try {
+                    let selectionUpdateTimeout;
+                    miro.board.ui.on('selection:update', () => {
         let isInitialized = false;
         let calculatorNotes = new Map();
         let spawnedResources = new Map();
