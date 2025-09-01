@@ -442,6 +442,8 @@
     <script>
         //Insert JavaScript code here
         let isInitialized = false;
+        window.addEventListener('beforeunload', cleanup);
+        window.addEventListener('unload', cleanup);
         let calculatorNotes = new Map();
         let spawnedResources = new Map();
         let lastUIUpdate = 0;
@@ -641,11 +643,11 @@
                 if (cancelRename) cancelRename.addEventListener('click', cancelRenameHandler);
 
                 try {
-                    let selectionUpdateTimeout;
                     miro.board.ui.on('selection:update', () => {
+                        // Clear previous timeout
+                        if (cleanup.selectionTimeout) clearTimeout(cleanup.selectionTimeout);
                         // Debounce the selection updates
-                        clearTimeout(selectionUpdateTimeout);
-                        selectionUpdateTimeout = setTimeout(() => {
+                        cleanup.selectionTimeout = setTimeout(() => {
                             throttledUpdateUI();
                         }, 500);
                     });
@@ -655,11 +657,12 @@
 
                 setTimeout(throttledUpdateUI, 1000);
 
-                setInterval(() => {
+                // Store interval reference for cleanup
+                cleanup.recheckInterval = setInterval(() => {
                     if (calculatorNotes.size > 0) {
                         throttledRecheckAllCalculatorNotes();
                     }
-                }, 10000);
+                }, 15000); // Increased from 10000ms to 15000ms
 
             } catch (error) {
                 console.error('Error setting up UI:', error);
@@ -1141,10 +1144,23 @@
 
         async function saveSpawnedResourcesData() {
             try {
+                // Limit each resource type to 50 items
+                for (const [type, ids] of spawnedResources.entries()) {
+                    if (ids.length > 50) {
+                        spawnedResources.set(type, ids.slice(-50));
+                    }
+                }
+
                 const data = Object.fromEntries(spawnedResources);
                 await miro.board.setAppData('spawnedResources', data);
             } catch (error) {
-                console.error('Error saving spawned resources data:', error);
+                if (error.message && error.message.includes('storage limit')) {
+                    // Clear old data if storage is full
+                    spawnedResources = new Map();
+                    await miro.board.setAppData('spawnedResources', {});
+                } else {
+                    console.error('Error saving spawned resources data:', error);
+                }
             }
         }
 
@@ -1183,7 +1199,7 @@
 
         function throttledUpdateUI() {
             const now = Date.now();
-            if (now - lastUIUpdate > 2000) {  // Increased from 1000ms to 2000ms
+            if (now - lastUIUpdate > 3000) {  // Increased from 2000ms to 3000ms
                 lastUIUpdate = now;
                 updateUI();
             }
@@ -1191,7 +1207,7 @@
 
         function throttledRecheckAllCalculatorNotes() {
             const now = Date.now();
-            if (now - lastCalculatorCheck > 10000) {  // Increased from 5000ms to 10000ms
+            if (now - lastCalculatorCheck > 15000) {  // Increased from 10000ms to 15000ms
                 lastCalculatorCheck = now;
                 recheckAllCalculatorNotes();
             }
@@ -1725,12 +1741,29 @@
 
         async function saveCalculatorData() {
             try {
+                // Limit to 100 most recent relationships
+                if (calculatorNotes.size > 100) {
+                    const sortedEntries = Array.from(calculatorNotes.entries())
+                        .sort((a, b) => (b[1].created || 0) - (a[1].created || 0))
+                        .slice(0, 100);
+                    calculatorNotes = new Map(sortedEntries);
+                }
+
                 const data = Object.fromEntries(calculatorNotes);
                 await miro.board.setAppData('calculatorNotes', data);
             } catch (error) {
-                console.error('Error saving calculator data:', error);
+                if (error.message && error.message.includes('storage limit')) {
+                    // If still too large, reduce further
+                    const reducedEntries = Array.from(calculatorNotes.entries()).slice(0, 50);
+                    calculatorNotes = new Map(reducedEntries);
+                    const reducedData = Object.fromEntries(calculatorNotes);
+                    await miro.board.setAppData('calculatorNotes', reducedData);
+                } else {
+                    console.error('Error saving calculator data:', error);
+                }
             }
         }
+
 
         async function loadCalculatorData() {
             try {
@@ -1744,6 +1777,20 @@
             } catch (error) {
                 console.error('Error loading calculator data:', error);
                 calculatorNotes = new Map();
+            }
+        }
+
+        function cleanup() {
+            // Clear all intervals and timeouts
+            if (cleanup.selectionTimeout) clearTimeout(cleanup.selectionTimeout);
+            if (cleanup.recheckInterval) clearInterval(cleanup.recheckInterval);
+
+            // Remove event listeners
+            try {
+                miro.board.ui.off('selection:update');
+                miro.board.ui.off('icon:click');
+            } catch (error) {
+                // Ignore errors during cleanup
             }
         }
 
@@ -1764,6 +1811,12 @@
             document.addEventListener('DOMContentLoaded', init);
         } else {
             init();
+        }
+
+        if (document.readyState === 'complete')
+        {
+            window.addEventListener('beforeunload', cleanup);
+            window.addEventListener('unload', cleanup);
         }
 
     </script>
