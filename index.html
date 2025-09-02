@@ -684,12 +684,9 @@
 
                 const numbers = validItems
                     .map(item => {
-                        if (!item.content) return null;
                         const cleanContent = item.content.replace(/<[^>]*>/g, '').trim();
                         const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
-                        if (match) {
-                            return parseFloat(match[1]);
-                        }
+                        if (match) return parseFloat(match[1]);
                         const num = parseFloat(cleanContent);
                         return isNaN(num) ? null : num;
                     })
@@ -700,60 +697,37 @@
                     return;
                 }
 
-                let result;
-                if (operation === 'sum') {
-                    result = numbers.reduce((a, b) => a + b, 0);
-                } else {
-                    result = numbers.reduce((a, b) => a * b, 1);
-                }
+                let result = operation === 'sum'
+                    ? numbers.reduce((a, b) => a + b, 0)
+                    : numbers.reduce((a, b) => a * b, 1);
 
                 const lastItem = validItems[validItems.length - 1];
                 const newX = lastItem.x + (lastItem.width || 200) + 50;
                 const newY = lastItem.y;
 
-                let fillColor;
-                if (operation === 'sum') {
-                    const parentColors = validItems.map(item => item.style?.fillColor).filter(color => color);
-                    if (parentColors.length > 0) {
-                        const colorCounts = {};
-                        parentColors.forEach(color => {
-                            colorCounts[color] = (colorCounts[color] || 0) + 1;
-                        });
-                        fillColor = Object.keys(colorCounts).reduce((a, b) =>
-                            colorCounts[a] > colorCounts[b] ? a : b
-                        );
-                    } else {
-                        fillColor = 'light_yellow';
-                    }
-                } else {
-                    fillColor = 'dark_green';
-                }
+                let fillColor = operation === 'sum' ? 'light_yellow' : 'dark_green';
 
                 const calculatorNote = await miro.board.createStickyNote({
                     content: result.toString(),
                     x: newX,
                     y: newY,
-                    style: {
-                        fillColor: fillColor
-                    }
+                    style: { fillColor }
                 });
 
                 const sourceIds = validItems.map(item => item.id);
                 calculatorNotes.set(calculatorNote.id, {
-                    operation: operation,
-                    sourceIds: sourceIds,
+                    operation,
+                    sourceIds,
                     name: `${operation.toUpperCase()}_${Date.now().toString().slice(-6)}`,
                     created: Date.now()
                 });
 
-                // Update the set of notes in relationships
                 updateNotesInRelationships();
-
+                await preciseCleanup();
                 await saveCalculatorData();
                 updateRelationshipsCount();
                 await miro.board.viewport.zoomTo(calculatorNote);
                 showStatus(`${operation} created: ${result}`, 'success');
-
             } catch (error) {
                 console.error('Error in calculate:', error);
                 showStatus('Error: ' + error.message, 'error');
@@ -1570,6 +1544,55 @@
             }
         }
 
+        async function updateRelationshipsList() {
+            const content = document.getElementById('relationshipsContent');
+            if (!content) return;
+
+            await preciseCleanup();
+
+            if (calculatorNotes.size === 0) {
+                content.innerHTML = 'No calculator relationships found';
+                return;
+            }
+
+            let html = '';
+            for (const [resultId, calcData] of calculatorNotes.entries()) {
+                html += `
+                    <div class="relationship-item ${calcData.operation}">
+                        <div class="relationship-header">
+                            <span class="goto-result" data-result-id="${resultId}" style="cursor:pointer;">
+                                ${calcData.operation.toUpperCase()}: ${calcData.name}
+                            </span>
+                            <span class="relationship-name rename-result" data-result-id="${resultId}" style="cursor:pointer;">
+                                ${calcData.name || 'Unnamed'}
+                            </span>
+                        </div>
+                        <div class="relationship-sources">
+                            Sources: ${calcData.sourceIds.join(', ')}
+                        </div>
+                        <div class="relationship-actions">
+                            <button class="action-btn goto-btn" data-result-id="${resultId}">Go</button>
+                            <button class="action-btn select-parents-btn" data-result-id="${resultId}">Parents</button>
+                            <button class="action-btn rename-btn" data-result-id="${resultId}">Rename</button>
+                            <button class="action-btn delete-btn" data-result-id="${resultId}">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }
+            content.innerHTML = html;
+            // Add event listeners for buttons (use event delegation)
+            content.onclick = function (event) {
+                const target = event.target;
+                const resultId = target.getAttribute('data-result-id');
+                if (!resultId) return;
+                if (target.classList.contains('goto-btn') || target.classList.contains('goto-result')) goToResultNote(resultId);
+                else if (target.classList.contains('select-parents-btn')) selectParents(resultId);
+                else if (target.classList.contains('rename-btn') || target.classList.contains('rename-result')) startRename(resultId);
+                else if (target.classList.contains('delete-btn')) deleteRelationship(resultId);
+            };
+        }
+
+
         async function saveCalculatorData() {
             try {
                 // Only limit if we have too many relationships
@@ -1578,9 +1601,11 @@
                     const sortedEntries = Array.from(calculatorNotes.entries())
                         .sort((a, b) => (b[1].created || 0) - (a[1].created || 0))
                         .slice(0, 50);
+                    await preciseCleanup();
                     calculatorNotes = new Map(sortedEntries);
                 }
 
+                await preciseCleanup();
                 const data = Object.fromEntries(calculatorNotes);
                 await miro.board.setAppData('calculatorNotes', data);
             } catch (error) {
@@ -1619,6 +1644,28 @@
             }
         }
 
+        async function preciseCleanup() {
+            // Remove relationships with missing result or sources
+            const allItems = await miro.board.getAll();
+            const validIds = new Set(allItems.filter(i => i.type === 'sticky_note').map(i => i.id));
+            const toDelete = [];
+            for (const [resultId, calcData] of calculatorNotes.entries()) {
+                if (!validIds.has(resultId) || calcData.sourceIds.some(id => !validIds.has(id))) {
+                    toDelete.push(resultId);
+                }
+            }
+            for (const resultId of toDelete) {
+                calculatorNotes.delete(resultId);
+            }
+            // Limit to 50 relationships
+            if (calculatorNotes.size > 50) {
+                const sorted = Array.from(calculatorNotes.entries())
+                    .sort((a, b) => (b[1].created || 0) - (a[1].created || 0))
+                    .slice(0, 50);
+                calculatorNotes = new Map(sorted);
+            }
+        }
+
         function showStatus(message, type) {
             const status = document.getElementById('status');
             if (status) {
@@ -1631,16 +1678,14 @@
             }
         }
 
-        if (document.readyState === 'loading')
-        {
+        if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
         }
-        else
-        {
+        else {
             init();
         }
 
-        
+
 
     </script>
 </body>
