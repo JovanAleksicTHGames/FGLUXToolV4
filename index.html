@@ -593,11 +593,13 @@
         async function updateRelationshipsList() {
             const content = document.getElementById('relationshipsContent');
             if (!content) return;
+
             await preciseCleanup();
             if (calculatorNotes.size === 0) {
                 content.innerHTML = 'No calculator relationships found';
                 return;
             }
+
             let html = '';
             for (const [resultId, calcData] of calculatorNotes.entries()) {
                 let resultContent = '';
@@ -607,6 +609,7 @@
                         resultContent = resultNote.content.replace(/<[^>]*>/g, '').trim();
                     }
                 } catch { }
+
                 let sourceContents = [];
                 for (const sourceId of calcData.sourceIds) {
                     try {
@@ -620,40 +623,51 @@
                         sourceContents.push('[deleted]');
                     }
                 }
+
                 html += `
-        <div class="relationship-item ${calcData.operation}">
-            <div class="relationship-header">
-                <span class="goto-result" data-result-id="${resultId}" style="cursor:pointer;">
-                    ${calcData.operation.toUpperCase()}: ${resultContent}
-                </span>
-                <span class="relationship-name rename-result" data-result-id="${resultId}" style="cursor:pointer;">
-                    ${calcData.name || 'Unnamed'}
-                </span>
-            </div>
-            <div class="relationship-sources">
-                Sources: ${sourceContents.join(', ')}
-            </div>
-            <div class="relationship-actions">
-                <button class="action-btn goto-btn" data-result-id="${resultId}">Go</button>
-                <button class="action-btn select-parents-btn" data-result-id="${resultId}">Parents</button>
-                <button class="action-btn rename-btn" data-result-id="${resultId}">Rename</button>
-                <button class="action-btn delete-btn" data-result-id="${resultId}">Delete</button>
-            </div>
-        </div>`;
+            <div class="relationship-item ${calcData.operation}">
+                <div class="relationship-header">
+                    <span class="goto-result" data-result-id="${resultId}" style="cursor:pointer;">
+                        ${calcData.operation.toUpperCase()}: ${resultContent}
+                    </span>
+                    <span class="relationship-name rename-result" data-result-id="${resultId}" style="cursor:pointer;">
+                        ${calcData.name || 'Unnamed'}
+                    </span>
+                </div>
+                <div class="relationship-sources">
+                    Sources: ${sourceContents.join(', ')}
+                </div>
+                <div class="relationship-actions">
+                    <button class="action-btn goto-btn" data-result-id="${resultId}">Go</button>
+                    <button class="action-btn select-parents-btn" data-result-id="${resultId}">Parents</button>
+                    <button class="action-btn rename-btn" data-result-id="${resultId}">Rename</button>
+                    <button class="action-btn delete-btn" data-result-id="${resultId}">Delete</button>
+                </div>
+            </div>`;
             }
+
             content.innerHTML = html;
+
+            // ✅ Null-safe onclick assignment
             if (content) {
                 content.onclick = function (event) {
                     const target = event.target;
                     const resultId = target.getAttribute('data-result-id');
                     if (!resultId) return;
-                    if (target.classList.contains('goto-btn') || target.classList.contains('goto-result')) goToResultNote(resultId);
-                    else if (target.classList.contains('select-parents-btn')) selectParents(resultId);
-                    else if (target.classList.contains('rename-btn') || target.classList.contains('rename-result')) startRename(resultId);
-                    else if (target.classList.contains('delete-btn')) deleteRelationship(resultId);
+
+                    if (target.classList.contains('goto-btn') || target.classList.contains('goto-result')) {
+                        goToResultNote(resultId);
+                    } else if (target.classList.contains('select-parents-btn')) {
+                        selectParents(resultId);
+                    } else if (target.classList.contains('rename-btn') || target.classList.contains('rename-result')) {
+                        startRename(resultId);
+                    } else if (target.classList.contains('delete-btn')) {
+                        deleteRelationship(resultId);
+                    }
                 };
             }
         }
+
         
     </script>
 </body>
