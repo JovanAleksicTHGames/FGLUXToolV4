@@ -161,7 +161,7 @@
             flex-direction: column;
         }
 
-        .pool-select {
+        .pool-select, .pool-input, .spawn-input {
             padding: 6px;
             border: 1px solid #ced4da;
             border-radius: 3px;
@@ -169,11 +169,7 @@
             background: white;
         }
 
-        .pool-input {
-            padding: 6px;
-            border: 1px solid #ced4da;
-            border-radius: 3px;
-            font-size: 11px;
+        .pool-input, .spawn-input {
             text-align: center;
         }
 
@@ -187,16 +183,6 @@
             background: #007bff;
             color: white;
             border: 1px solid #007bff;
-        }
-
-        .spawn-input {
-            width: 100%;
-            padding: 6px;
-            border: 1px solid #ced4da;
-            border-radius: 3px;
-            margin: 4px 0;
-            font-size: 12px;
-            box-sizing: border-box;
         }
 
         .relationships-section {
@@ -439,11 +425,7 @@
         </div>
     </div>
 
-
-
     <script>
-        //insert JavaScriot Here
-
         let isInitialized = false;
         let calculatorNotes = new Map();
         let spawnedResources = new Map();
@@ -465,25 +447,19 @@
                 status.textContent = message;
                 status.className = type;
                 status.style.display = 'block';
-                setTimeout(() => {
-                    status.style.display = 'none';
-                }, 3000);
+                setTimeout(() => { status.style.display = 'none'; }, 3000);
             }
         }
 
+        // ---- App data (v2): use getAppData / setAppData ----
         async function saveGlobalVariables() {
-            try {
-                await miro.board.setAppData('globalVariables', globalVariables);
-            } catch (error) {
-                console.error('Error saving global variables:', error);
-            }
+            try { await miro.board.setAppData('globalVariables', globalVariables); }
+            catch (error) { console.error('Error saving global variables:', error); }
         }
-
-
         async function loadGlobalVariables() {
             try {
                 const data = await miro.board.getAppData('globalVariables');
-                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                if (data && typeof data === 'object') {
                     globalVariables = data;
                     const inputs = {
                         barrelSmall: document.getElementById('barrelSmall'),
@@ -492,32 +468,22 @@
                         digValue: document.getElementById('digValue'),
                         crateValue: document.getElementById('crateValue')
                     };
-                    for (const [key, input] of Object.entries(inputs)) {
-                        if (input && globalVariables[key]) {
-                            input.value = globalVariables[key];
-                        }
+                    for (const [k, input] of Object.entries(inputs)) {
+                        if (input && globalVariables[k] != null) input.value = globalVariables[k];
                     }
-                } else if (data !== undefined && data !== null) {
-                    // Reset invalid data shape to defaults
-                    await miro.board.setAppData('globalVariables', globalVariables);
                 }
-            } catch (error) {
-                console.error('Error loading global variables:', error);
-            }
+            } catch (error) { console.error('Error loading global variables:', error); }
         }
-
 
         async function saveSpawnedResourcesData() {
             try {
                 for (const [type, ids] of spawnedResources.entries()) {
-                    if (ids.length > 50) {
-                        spawnedResources.set(type, ids.slice(-50));
-                    }
+                    if (ids.length > 50) spawnedResources.set(type, ids.slice(-50));
                 }
                 const data = Object.fromEntries(spawnedResources);
                 await miro.board.setAppData('spawnedResources', data);
             } catch (error) {
-                if (error.message && error.message.includes('storage limit')) {
+                if (error?.message?.includes('storage limit')) {
                     spawnedResources = new Map();
                     await miro.board.setAppData('spawnedResources', {});
                 } else {
@@ -525,17 +491,12 @@
                 }
             }
         }
-
-
         async function loadSpawnedResourcesData() {
             try {
                 const data = await miro.board.getAppData('spawnedResources');
-                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                if (data && typeof data === 'object') {
                     spawnedResources = new Map(Object.entries(data));
                     await cleanupSpawnedResources();
-                } else if (data !== undefined && data !== null) {
-                    spawnedResources = new Map();
-                    await miro.board.setAppData('spawnedResources', {});
                 } else {
                     spawnedResources = new Map();
                 }
@@ -545,17 +506,14 @@
             }
         }
 
-
         async function cleanupSpawnedResources() {
             for (const [resourceType, resourceIds] of spawnedResources.entries()) {
                 const validIds = [];
                 for (const resourceId of resourceIds) {
                     try {
                         const resource = await miro.board.getById(resourceId);
-                        if (resource && resource.type === 'sticky_note') {
-                            validIds.push(resourceId);
-                        }
-                    } catch (error) { }
+                        if (resource && resource.type === 'sticky_note') validIds.push(resourceId);
+                    } catch (error) { /* ignore */ }
                 }
                 spawnedResources.set(resourceType, validIds);
             }
@@ -569,53 +527,39 @@
                     case 'medium': return globalVariables.barrelMedium || 10;
                     case 'big': return globalVariables.barrelBig || 20;
                 }
-            } else if (type === 'dig') {
-                return globalVariables.digValue || 3;
-            } else if (type === 'crate') {
-                return globalVariables.crateValue || 15;
-            }
+            } else if (type === 'dig') return globalVariables.digValue || 3;
+            else if (type === 'crate') return globalVariables.crateValue || 15;
             return 5;
         }
 
         async function createResource(type, size) {
             try {
                 const viewport = await miro.board.viewport.get();
-                const centerX = viewport.x + (viewport.width / 2);
-                const centerY = viewport.y + (viewport.height / 2);
+                const centerX = viewport.x + viewport.width / 2;
+                const centerY = viewport.y + viewport.height / 2;
 
                 let content, fillColor, resourceType;
-
                 if (type === 'barrel') {
                     const value = getGlobalValue(type, size);
                     content = `${size.charAt(0).toUpperCase() + size.slice(1)} Barrel (${value})`;
                     resourceType = `barrel-${size}`;
-                    switch (size) {
-                        case 'small': fillColor = 'light_yellow'; break;
-                        case 'medium': fillColor = 'yellow'; break;
-                        case 'big': fillColor = 'orange'; break;
-                    }
+                    if (size === 'small') fillColor = 'light_yellow';
+                    else if (size === 'medium') fillColor = 'yellow';
+                    else fillColor = 'orange';
                 } else if (type === 'dig') {
                     const value = globalVariables.digValue || 3;
-                    content = `Dig (${value})`;
-                    fillColor = 'light_green';
-                    resourceType = 'dig';
-                } else if (type === 'crate') {
+                    content = `Dig (${value})`; fillColor = 'light_green'; resourceType = 'dig';
+                } else {
                     const value = globalVariables.crateValue || 15;
-                    content = `Crate (${value})`;
-                    fillColor = 'light_blue';
-                    resourceType = 'crate';
+                    content = `Crate (${value})`; fillColor = 'light_blue'; resourceType = 'crate';
                 }
 
                 const resource = await miro.board.createStickyNote({
-                    content: content,
-                    x: centerX + (Math.random() - 0.5) * 100,
-                    y: centerY + (Math.random() - 0.5) * 100,
-                    style: { fillColor: fillColor }
+                    content, x: centerX + (Math.random() - 0.5) * 100, y: centerY + (Math.random() - 0.5) * 100,
+                    style: { fillColor }
                 });
 
-                if (!spawnedResources.has(resourceType)) {
-                    spawnedResources.set(resourceType, []);
-                }
+                if (!spawnedResources.has(resourceType)) spawnedResources.set(resourceType, []);
                 spawnedResources.get(resourceType).push(resource.id);
                 await saveSpawnedResourcesData();
 
@@ -632,51 +576,26 @@
                 const resourceTypeSelect = document.getElementById('resourceTypeSelect');
                 const poolQuantityInput = document.getElementById('poolQuantity');
                 if (!resourceTypeSelect || !poolQuantityInput) {
-                    showStatus('Error: UI elements not found', 'error');
-                    return;
+                    showStatus('Error: UI elements not found', 'error'); return;
                 }
                 const resourceType = resourceTypeSelect.value;
                 const quantity = parseInt(poolQuantityInput.value) || 3;
-                if (quantity < 2 || quantity > 20) {
-                    showStatus('Please enter a quantity between 2 and 20', 'error');
-                    return;
-                }
+                if (quantity < 2 || quantity > 20) { showStatus('Please enter a quantity between 2 and 20', 'error'); return; }
+
                 const viewport = await miro.board.viewport.get();
-                const centerX = viewport.x + (viewport.width / 2);
-                const centerY = viewport.y + (viewport.height / 2);
+                const centerX = viewport.x + viewport.width / 2;
+                const centerY = viewport.y + viewport.height / 2;
 
                 let content, value, fillColor;
                 const [type, size] = resourceType.split('-');
                 if (type === 'barrel') {
-                    switch (size) {
-                        case 'small':
-                            value = globalVariables.barrelSmall || 5;
-                            content = `Small Barrel (${value})`;
-                            fillColor = 'light_yellow';
-                            break;
-                        case 'medium':
-                            value = globalVariables.barrelMedium || 10;
-                            content = `Med Barrel (${value})`;
-                            fillColor = 'yellow';
-                            break;
-                        case 'big':
-                            value = globalVariables.barrelBig || 20;
-                            content = `Big Barrel (${value})`;
-                            fillColor = 'orange';
-                            break;
-                        default:
-                            value = 5;
-                            content = 'Barrel (5)';
-                            fillColor = 'light_yellow';
-                    }
+                    if (size === 'small') { value = globalVariables.barrelSmall || 5; content = `Small Barrel (${value})`; fillColor = 'light_yellow'; }
+                    else if (size === 'medium') { value = globalVariables.barrelMedium || 10; content = `Med Barrel (${value})`; fillColor = 'yellow'; }
+                    else { value = globalVariables.barrelBig || 20; content = `Big Barrel (${value})`; fillColor = 'orange'; }
                 } else if (type === 'dig') {
-                    value = globalVariables.digValue || 3;
-                    content = `Dig (${value})`;
-                    fillColor = 'light_green';
-                } else if (type === 'crate') {
-                    value = globalVariables.crateValue || 15;
-                    content = `Crate (${value})`;
-                    fillColor = 'light_blue';
+                    value = globalVariables.digValue || 3; content = `Dig (${value})`; fillColor = 'light_green';
+                } else {
+                    value = globalVariables.crateValue || 15; content = `Crate (${value})`; fillColor = 'light_blue';
                 }
 
                 const spacing = 250;
@@ -684,15 +603,10 @@
                 const resourceNotes = [];
                 for (let i = 0; i < quantity; i++) {
                     const resource = await miro.board.createStickyNote({
-                        content: content,
-                        x: startX + (i * spacing),
-                        y: centerY,
-                        style: { fillColor: fillColor }
+                        content, x: startX + i * spacing, y: centerY, style: { fillColor }
                     });
                     resourceNotes.push(resource);
-                    if (!spawnedResources.has(resourceType)) {
-                        spawnedResources.set(resourceType, []);
-                    }
+                    if (!spawnedResources.has(resourceType)) spawnedResources.set(resourceType, []);
                     spawnedResources.get(resourceType).push(resource.id);
                 }
 
@@ -702,16 +616,13 @@
                 const sumY = lastResource.y;
 
                 const sumNote = await miro.board.createStickyNote({
-                    content: totalValue.toString(),
-                    x: sumX,
-                    y: sumY,
-                    style: { fillColor: fillColor }
+                    content: totalValue.toString(), x: sumX, y: sumY, style: { fillColor }
                 });
 
-                const sourceIds = resourceNotes.map(note => note.id);
+                const sourceIds = resourceNotes.map(n => n.id);
                 calculatorNotes.set(sumNote.id, {
                     operation: 'sum',
-                    sourceIds: sourceIds,
+                    sourceIds,
                     name: `POOL_${type.toUpperCase()}_${Date.now().toString().slice(-6)}`,
                     created: Date.now()
                 });
@@ -722,13 +633,9 @@
                 updateRelationshipsCount();
 
                 const relationshipsList = document.getElementById('relationshipsList');
-                if (relationshipsList && relationshipsList.style.display !== 'none') {
-                    await updateRelationshipsList();
-                }
+                if (relationshipsList && relationshipsList.style.display !== 'none') await updateRelationshipsList();
 
-                const allItems = [...resourceNotes, sumNote];
-                await miro.board.viewport.zoomTo(allItems);
-
+                await miro.board.viewport.zoomTo([...resourceNotes, sumNote]);
                 showStatus(`Created resource pool: ${quantity}x ${content} = ${totalValue}`, 'success');
             } catch (error) {
                 console.error('Error creating resource pool:', error);
@@ -762,39 +669,34 @@
                 const digValueInput = document.getElementById('digValue');
                 const crateValueInput = document.getElementById('crateValue');
                 if (barrelSmallInput) barrelSmallInput.addEventListener('input', () => {
-                    const value = parseInt(barrelSmallInput.value);
-                    globalVariables.barrelSmall = value > 0 ? value : 5;
-                    if (value <= 0) barrelSmallInput.value = 5;
+                    const v = parseInt(barrelSmallInput.value);
+                    globalVariables.barrelSmall = v > 0 ? v : 5;
+                    if (v <= 0) barrelSmallInput.value = 5;
                     saveGlobalVariables();
-                    updateResourceValues('barrel-small');
                 });
                 if (barrelMediumInput) barrelMediumInput.addEventListener('input', () => {
-                    const value = parseInt(barrelMediumInput.value);
-                    globalVariables.barrelMedium = value > 0 ? value : 10;
-                    if (value <= 0) barrelMediumInput.value = 10;
+                    const v = parseInt(barrelMediumInput.value);
+                    globalVariables.barrelMedium = v > 0 ? v : 10;
+                    if (v <= 0) barrelMediumInput.value = 10;
                     saveGlobalVariables();
-                    updateResourceValues('barrel-medium');
                 });
                 if (barrelBigInput) barrelBigInput.addEventListener('input', () => {
-                    const value = parseInt(barrelBigInput.value);
-                    globalVariables.barrelBig = value > 0 ? value : 20;
-                    if (value <= 0) barrelBigInput.value = 20;
+                    const v = parseInt(barrelBigInput.value);
+                    globalVariables.barrelBig = v > 0 ? v : 20;
+                    if (v <= 0) barrelBigInput.value = 20;
                     saveGlobalVariables();
-                    updateResourceValues('barrel-big');
                 });
                 if (digValueInput) digValueInput.addEventListener('input', () => {
-                    const value = parseInt(digValueInput.value);
-                    globalVariables.digValue = value > 0 ? value : 3;
-                    if (value <= 0) digValueInput.value = 3;
+                    const v = parseInt(digValueInput.value);
+                    globalVariables.digValue = v > 0 ? v : 3;
+                    if (v <= 0) digValueInput.value = 3;
                     saveGlobalVariables();
-                    updateResourceValues('dig');
                 });
                 if (crateValueInput) crateValueInput.addEventListener('input', () => {
-                    const value = parseInt(crateValueInput.value);
-                    globalVariables.crateValue = value > 0 ? value : 15;
-                    if (value <= 0) crateValueInput.value = 15;
+                    const v = parseInt(crateValueInput.value);
+                    globalVariables.crateValue = v > 0 ? v : 15;
+                    if (v <= 0) crateValueInput.value = 15;
                     saveGlobalVariables();
-                    updateResourceValues('crate');
                 });
 
                 const createResourcePoolBtn = document.getElementById('createResourcePool');
@@ -814,9 +716,7 @@
                         toggleBtn.innerHTML = isVisible
                             ? `▼ Show Relationships (<span id="relationshipCount">${count}</span>)`
                             : `▲ Hide Relationships (<span id="relationshipCount">${count}</span>)`;
-                        if (!isVisible) {
-                            updateRelationshipsList();
-                        }
+                        if (!isVisible) updateRelationshipsList();
                     });
                 }
 
@@ -825,17 +725,11 @@
                 if (confirmRename) confirmRename.addEventListener('click', confirmRenameHandler);
                 if (cancelRename) cancelRename.addEventListener('click', cancelRenameHandler);
 
-                miro.board.ui.on('selection:update', () => {
-                    throttledUpdateUI();
-                });
+                // v2 selection event subscription:
+                miro.board.ui.on('selection:update', throttledUpdateUI);
 
                 setTimeout(throttledUpdateUI, 1000);
-
-                setInterval(() => {
-                    if (calculatorNotes.size > 0) {
-                        throttledRecheckAllCalculatorNotes();
-                    }
-                }, 10000);
+                setInterval(() => { if (calculatorNotes.size > 0) throttledRecheckAllCalculatorNotes(); }, 10000);
             } catch (error) {
                 console.error('Error setting up UI:', error);
             }
@@ -845,23 +739,18 @@
             try {
                 const countInput = document.getElementById('spawnCount');
                 const count = parseInt(countInput ? countInput.value : 3) || 3;
-                if (count < 1 || count > 20) {
-                    showStatus('Please enter a number between 1 and 20', 'error');
-                    return;
-                }
+                if (count < 1 || count > 20) { showStatus('Please enter a number between 1 and 20', 'error'); return; }
+
                 const spacing = 400;
                 const viewport = await miro.board.viewport.get();
-                const centerX = viewport.x + (viewport.width / 2);
-                const centerY = viewport.y + (viewport.height / 2);
+                const centerX = viewport.x + viewport.width / 2;
+                const centerY = viewport.y + viewport.height / 2;
+
                 const stickyNotes = [];
                 const startX = centerX - ((count - 1) * spacing / 2);
-                const startY = centerY;
                 for (let i = 0; i < count; i++) {
                     const stickyNote = await miro.board.createStickyNote({
-                        content: `${i + 1}`,
-                        x: startX + (i * spacing),
-                        y: startY,
-                        style: { fillColor: 'light_blue' }
+                        content: `${i + 1}`, x: startX + (i * spacing), y: centerY, style: { fillColor: 'light_blue' }
                     });
                     stickyNotes.push(stickyNote);
                 }
@@ -872,13 +761,9 @@
                             end: { item: stickyNotes[i + 1].id, snapTo: 'top' },
                             style: { strokeColor: '#1976d2', strokeWidth: 2 }
                         });
-                    } catch (connectorError) {
-                        console.log('Could not create connector:', connectorError.message);
-                    }
+                    } catch (e) { console.log('Could not create connector:', e.message); }
                 }
-                if (stickyNotes.length > 0) {
-                    await miro.board.viewport.zoomTo(stickyNotes);
-                }
+                if (stickyNotes.length > 0) await miro.board.viewport.zoomTo(stickyNotes);
                 showStatus(`Spawned ${count} connected numbers`, 'success');
             } catch (error) {
                 console.error('Error spawning numbers:', error);
@@ -886,19 +771,13 @@
             }
         }
 
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
-        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+        else init();
 
         async function init() {
             if (isInitialized) return;
             try {
-                if (typeof miro === 'undefined') {
-                    setTimeout(init, 100);
-                    return;
-                }
+                if (typeof miro === 'undefined') { setTimeout(init, 100); return; }
                 setupUI();
                 await loadGlobalVariables();
                 await loadCalculatorData();
@@ -916,23 +795,20 @@
 
         function updateRelationshipsCount() {
             const countElement = document.getElementById('relationshipCount');
-            if (countElement) {
-                countElement.textContent = calculatorNotes.size;
-            }
+            if (countElement) countElement.textContent = calculatorNotes.size;
         }
 
         function updateNotesInRelationships() {
             notesInRelationships.clear();
-            for (const [resultId, calcData] of calculatorNotes.entries()) {
-                for (const sourceId of calcData.sourceIds) {
-                    notesInRelationships.add(sourceId);
-                }
+            for (const [, calcData] of calculatorNotes.entries()) {
+                for (const sourceId of calcData.sourceIds) notesInRelationships.add(sourceId);
             }
         }
 
         async function saveCalculatorData() {
             try {
-                await preciseCleanup();
+                // Important: NO call to saveCalculatorData() from preciseCleanup()
+                await preciseCleanup(); // sanitize in-memory map only
                 const data = Object.fromEntries(calculatorNotes);
                 await miro.board.setAppData('calculatorNotes', data);
             } catch (error) {
@@ -940,16 +816,12 @@
             }
         }
 
-
         async function loadCalculatorData() {
             try {
                 const data = await miro.board.getAppData('calculatorNotes');
-                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                if (data && typeof data === 'object') {
                     calculatorNotes = new Map(Object.entries(data));
-                    await preciseCleanup();
-                } else if (data !== undefined && data !== null) {
-                    calculatorNotes = new Map();
-                    await miro.board.setAppData('calculatorNotes', {});
+                    await preciseCleanup(); // sanitize in-memory only; DO NOT save here
                 } else {
                     calculatorNotes = new Map();
                 }
@@ -959,48 +831,44 @@
             }
         }
 
-
-
         async function preciseCleanup() {
-            // Validate that result and source IDs still exist on the board.
+            // Validate that result and source IDs still exist and are sticky notes.
             const toDelete = [];
             for (const [resultId, calcData] of calculatorNotes.entries()) {
+                let resultExists = false;
                 try {
-                    const resultItem = await miro.board.getById(resultId);
-                    if (!resultItem || resultItem.type !== 'sticky_note') {
-                        toDelete.push(resultId);
-                        continue;
-                    }
-                } catch (e) {
-                    toDelete.push(resultId);
-                    continue;
-                }
-                const validSources = [];
-                for (const sid of calcData.sourceIds) {
-                    try {
-                        const srcItem = await miro.board.getById(sid);
-                        if (srcItem && srcItem.type === 'sticky_note') {
-                            validSources.push(sid);
-                        }
-                    } catch (e) { /* ignore */ }
-                }
-                if (validSources.length < 2) {
-                    toDelete.push(resultId);
-                } else {
-                    calcData.sourceIds = validSources;
-                    calculatorNotes.set(resultId, calcData);
-                }
-            }
-            for (const rid of toDelete) {
-                calculatorNotes.delete(rid);
-            }
-            await saveCalculatorData();
-        }
+                    const item = await miro.board.getById(resultId);
+                    resultExists = !!(item && item.type === 'sticky_note');
+                } catch { resultExists = false; }
+                if (!resultExists) { toDelete.push(resultId); continue; }
 
+                const validSources = [];
+                for (const sourceId of calcData.sourceIds) {
+                    try {
+                        const src = await miro.board.getById(sourceId);
+                        if (src && src.type === 'sticky_note') validSources.push(sourceId);
+                    } catch { /* ignore */ }
+                }
+                if (validSources.length < 2) { toDelete.push(resultId); continue; }
+
+                calcData.sourceIds = validSources;
+                calculatorNotes.set(resultId, calcData);
+            }
+            for (const id of toDelete) calculatorNotes.delete(id);
+
+            if (calculatorNotes.size > 50) {
+                const sorted = Array.from(calculatorNotes.entries())
+                    .sort((a, b) => (b[1].created || 0) - (a[1].created || 0))
+                    .slice(0, 50);
+                calculatorNotes = new Map(sorted);
+            }
+            // NOTE: Do NOT call saveCalculatorData() here to avoid recursion.
+        }
 
         async function updateRelationshipsList() {
             const content = document.getElementById('relationshipsContent');
             if (!content) return;
+
             await preciseCleanup();
             if (calculatorNotes.size === 0) {
                 content.innerHTML = 'No calculator relationships found';
@@ -1011,49 +879,53 @@
                 let resultContent = '';
                 try {
                     const resultNote = await miro.board.getById(resultId);
-                    resultContent = resultNote ? resultNote.content.replace(/<[^>]*>/g, '').trim() : '';
-                } catch { }
-                let sourceContents = [];
+                    if (resultNote) resultContent = resultNote.content.replace(/<[^>]*>/g, '').trim();
+                } catch { /* ignore */ }
+
+                const sourceContents = [];
                 for (const sourceId of calcData.sourceIds) {
                     try {
                         const sourceNote = await miro.board.getById(sourceId);
-                        sourceContents.push(sourceNote ? sourceNote.content.replace(/<[^>]*>/g, '').trim() : '[deleted]');
-                    } catch {
-                        sourceContents.push('[deleted]');
-                    }
+                        if (sourceNote) sourceContents.push(sourceNote.content.replace(/<[^>]*>/g, '').trim());
+                        else sourceContents.push('[deleted]');
+                    } catch { sourceContents.push('[deleted]'); }
                 }
+
                 html += `
-                <div class="relationship-item ${calcData.operation}">
-                    <div class="relationship-header">
-                        <span class="goto-result" data-result-id="${resultId}" style="cursor:pointer;">
-                            ${calcData.operation.toUpperCase()}: ${resultContent}
-                        </span>
-                        <span class="relationship-name rename-result" data-result-id="${resultId}" style="cursor:pointer;">
-                            ${calcData.name || 'Unnamed'}
-                        </span>
-                    </div>
-                    <div class="relationship-sources">
-                        Sources: ${sourceContents.join(', ')}
-                    </div>
-                    <div class="relationship-actions">
-                        <button class="action-btn goto-btn" data-result-id="${resultId}">Go</button>
-                        <button class="action-btn select-parents-btn" data-result-id="${resultId}">Parents</button>
-                        <button class="action-btn rename-btn" data-result-id="${resultId}">Rename</button>
-                        <button class="action-btn delete-btn" data-result-id="${resultId}">Delete</button>
-                    </div>
-                </div>
-            `;
+                    <div class="relationship-item ${calcData.operation}">
+                        <div class="relationship-header">
+                            <span class="goto-result" data-result-id="${resultId}" style="cursor:pointer;">
+                                ${calcData.operation.toUpperCase()}: ${resultContent}
+                            </span>
+                            <span class="relationship-name rename-result" data-result-id="${resultId}" style="cursor:pointer;">
+                                ${calcData.name || 'Unnamed'}
+                            </span>
+                        </div>
+                        <div class="relationship-sources">
+                            Sources: ${sourceContents.join(', ')}
+                        </div>
+                        <div class="relationship-actions">
+                            <button class="action-btn goto-btn" data-result-id="${resultId}">Go</button>
+                            <button class="action-btn select-parents-btn" data-result-id="${resultId}">Parents</button>
+                            <button class="action-btn rename-btn" data-result-id="${resultId}">Rename</button>
+                            <button class="action-btn delete-btn" data-result-id="${resultId}">Delete</button>
+                        </div>
+                    </div>`;
             }
             content.innerHTML = html;
-            if (content) content.onclick = function (event) {
-                const target = event.target;
-                const resultId = target.getAttribute('data-result-id');
-                if (!resultId) return;
-                if (target.classList.contains('goto-btn') || target.classList.contains('goto-result')) goToResultNote(resultId);
-                else if (target.classList.contains('select-parents-btn')) selectParents(resultId);
-                else if (target.classList.contains('rename-btn') || target.classList.contains('rename-result')) startRename(resultId);
-                else if (target.classList.contains('delete-btn')) deleteRelationship(resultId);
-            };
+
+            // Null-safe: only set onclick if content exists
+            if (content) {
+                content.onclick = function (event) {
+                    const target = event.target;
+                    const resultId = target.getAttribute('data-result-id');
+                    if (!resultId) return;
+                    if (target.classList.contains('goto-btn') || target.classList.contains('goto-result')) goToResultNote(resultId);
+                    else if (target.classList.contains('select-parents-btn')) selectParents(resultId);
+                    else if (target.classList.contains('rename-btn') || target.classList.contains('rename-result')) startRename(resultId);
+                    else if (target.classList.contains('delete-btn')) deleteRelationship(resultId);
+                };
+            }
         }
 
         async function calculate(operation) {
@@ -1062,37 +934,33 @@
                 const validItems = selection.filter(item => item.type === 'sticky_note' && item.content);
                 const numbers = validItems
                     .map(item => {
-                        const cleanContent = item.content.replace(/<[^>]*>/g, '').trim();
-                        const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
+                        const clean = item.content.replace(/<[^>]*>/g, '').trim();
+                        const match = clean.match(/\((\d+)\)/) || clean.match(/^(\d+)$/);
                         if (match) return parseFloat(match[1]);
-                        const num = parseFloat(cleanContent);
+                        const num = parseFloat(clean);
                         return isNaN(num) ? null : num;
                     })
                     .filter(n => n !== null);
-                if (numbers.length < 2) {
-                    showStatus('Please select at least 2 items with numbers', 'error');
-                    return;
-                }
-                let result = operation === 'sum'
+
+                if (numbers.length < 2) { showStatus('Please select at least 2 items with numbers', 'error'); return; }
+
+                const result = operation === 'sum'
                     ? numbers.reduce((a, b) => a + b, 0)
                     : numbers.reduce((a, b) => a * b, 1);
+
                 const lastItem = validItems[validItems.length - 1];
                 const newX = lastItem.x + (lastItem.width || 200) + 50;
                 const newY = lastItem.y;
-                let fillColor = operation === 'sum' ? 'light_yellow' : 'dark_green';
+                const fillColor = operation === 'sum' ? 'light_yellow' : 'dark_green';
+
                 const calculatorNote = await miro.board.createStickyNote({
-                    content: result.toString(),
-                    x: newX,
-                    y: newY,
-                    style: { fillColor }
+                    content: result.toString(), x: newX, y: newY, style: { fillColor }
                 });
-                const sourceIds = validItems.map(item => item.id);
+                const sourceIds = validItems.map(i => i.id);
                 calculatorNotes.set(calculatorNote.id, {
-                    operation,
-                    sourceIds,
-                    name: `${operation.toUpperCase()}_${Date.now().toString().slice(-6)}`,
-                    created: Date.now()
+                    operation, sourceIds, name: `${operation.toUpperCase()}_${Date.now().toString().slice(-6)}`, created: Date.now()
                 });
+
                 updateNotesInRelationships();
                 await preciseCleanup();
                 await saveCalculatorData();
@@ -1114,37 +982,26 @@
                 for (const item of selection) {
                     if (item.type === 'sticky_note') {
                         if (calculatorNotes.has(item.id)) {
-                            if (calculatorResultId) {
-                                showStatus('Please select only one calculator result to expand', 'error');
-                                return;
-                            }
+                            if (calculatorResultId) { showStatus('Please select only one calculator result to expand', 'error'); return; }
                             calculatorResultId = item.id;
                         } else if (item.content) {
-                            const cleanContent = item.content.replace(/<[^>]*>/g, '').trim();
-                            const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
-                            if (match) {
-                                newSourceItems.push(item);
-                            } else {
-                                const num = parseFloat(cleanContent);
-                                if (!isNaN(num)) {
-                                    newSourceItems.push(item);
-                                }
+                            const clean = item.content.replace(/<[^>]*>/g, '').trim();
+                            const match = clean.match(/\((\d+)\)/) || clean.match(/^(\d+)$/);
+                            if (match) newSourceItems.push(item);
+                            else {
+                                const num = parseFloat(clean);
+                                if (!isNaN(num)) newSourceItems.push(item);
                             }
                         }
                     }
                 }
-                if (!calculatorResultId || newSourceItems.length === 0) {
-                    showStatus('Please select a calculator result and at least one number note', 'error');
-                    return;
-                }
+                if (!calculatorResultId || newSourceItems.length === 0) { showStatus('Please select a calculator result and at least one number note', 'error'); return; }
+
                 const calcData = calculatorNotes.get(calculatorResultId);
-                if (!calcData) {
-                    showStatus('Calculator relationship not found', 'error');
-                    return;
-                }
-                const newSourceIds = newSourceItems.map(item => item.id);
-                const updatedSourceIds = [...calcData.sourceIds, ...newSourceIds];
-                calcData.sourceIds = updatedSourceIds;
+                if (!calcData) { showStatus('Calculator relationship not found', 'error'); return; }
+
+                const newSourceIds = newSourceItems.map(i => i.id);
+                calcData.sourceIds = [...calcData.sourceIds, ...newSourceIds];
                 calculatorNotes.set(calculatorResultId, calcData);
                 updateNotesInRelationships();
                 await recalculateResult(calculatorResultId, calcData);
@@ -1171,28 +1028,22 @@
                 console.error('Error navigating to result note:', error);
                 showStatus('Error: Result note may have been deleted', 'error');
             }
-        }
+        };
 
         window.selectParents = async function (resultId) {
             try {
                 const calcData = calculatorNotes.get(resultId);
-                if (!calcData) {
-                    showStatus('Relationship not found', 'error');
-                    return;
-                }
+                if (!calcData) { showStatus('Relationship not found', 'error'); return; }
                 const parentNotes = [];
                 let validParentCount = 0;
                 for (const sourceId of calcData.sourceIds) {
                     try {
                         const sourceNote = await miro.board.getById(sourceId);
-                        if (sourceNote) {
-                            parentNotes.push(sourceNote);
-                            validParentCount++;
-                        }
-                    } catch (error) { }
+                        if (sourceNote) { parentNotes.push(sourceNote); validParentCount++; }
+                    } catch (error) { /* ignore */ }
                 }
                 if (parentNotes.length > 0) {
-                    await miro.board.select({ id: parentNotes.map(note => note.id) });
+                    await miro.board.select({ id: parentNotes.map(n => n.id) });
                     await miro.board.viewport.zoomTo(parentNotes);
                     showStatus(`Selected ${validParentCount} parent notes`, 'success');
                 } else {
@@ -1202,7 +1053,7 @@
                 console.error('Error selecting parent notes:', error);
                 showStatus('Error selecting parent notes: ' + error.message, 'error');
             }
-        }
+        };
 
         window.startRename = function (resultId) {
             currentRenamingId = resultId;
@@ -1213,7 +1064,7 @@
             if (renameInput) renameInput.value = currentName;
             if (renameModal) renameModal.style.display = 'block';
             if (renameInput) renameInput.focus();
-        }
+        };
 
         function confirmRenameHandler() {
             const renameInput = document.getElementById('renameInput');
@@ -1242,117 +1093,81 @@
         window.deleteRelationship = async function (resultId) {
             try {
                 const calcData = calculatorNotes.get(resultId);
-                if (!calcData) {
-                    showStatus('Relationship not found', 'error');
-                    return;
-                }
-                const confirmMessage = `Delete relationship "${calcData.name}" and ALL related notes?\n\nThis will delete:\n- The result note (${calcData.operation})\n- All ${calcData.sourceIds.length} source notes\n\nThis action cannot be undone.`;
-                if (!confirm(confirmMessage)) {
-                    return;
-                }
-                let deletedCount = 0;
-                let errors = [];
-                const itemsToDelete = [];
+                if (!calcData) { showStatus('Relationship not found', 'error'); return; }
+                const confirmMessage =
+                    `Delete relationship "${calcData.name}" and ALL related notes?\n\n` +
+                    `This will delete:\n- The result note (${calcData.operation})\n- All ${calcData.sourceIds.length} source notes\n\n` +
+                    `This action cannot be undone.`;
+                if (!confirm(confirmMessage)) return;
+
+                let deletedCount = 0; const errors = []; const itemsToDelete = [];
                 for (const sourceId of calcData.sourceIds) {
                     try {
                         const sourceNote = await miro.board.getById(sourceId);
-                        if (sourceNote) {
-                            itemsToDelete.push(sourceNote);
-                        }
-                    } catch (error) {
-                        errors.push(`Source ${sourceId.slice(-8)}: ${error.message}`);
-                    }
+                        if (sourceNote) itemsToDelete.push(sourceNote);
+                    } catch (error) { errors.push(`Source ${sourceId.slice(-8)}: ${error.message}`); }
                 }
                 try {
                     const resultNote = await miro.board.getById(resultId);
-                    if (resultNote) {
-                        itemsToDelete.push(resultNote);
-                    }
-                } catch (error) {
-                    errors.push(`Result ${resultId.slice(-8)}: ${error.message}`);
-                }
+                    if (resultNote) itemsToDelete.push(resultNote);
+                } catch (error) { errors.push(`Result ${resultId.slice(-8)}: ${error.message}`); }
+
                 for (const item of itemsToDelete) {
-                    try {
-                        await miro.board.remove(item);
-                        deletedCount++;
-                    } catch (error) {
-                        errors.push(`Item ${item.id.slice(-8)}: ${error.message}`);
-                    }
+                    try { await miro.board.remove(item); deletedCount++; }
+                    catch (error) { errors.push(`Item ${item.id.slice(-8)}: ${error.message}`); }
                 }
+
                 calculatorNotes.delete(resultId);
                 updateNotesInRelationships();
                 await saveCalculatorData();
                 updateRelationshipsCount();
                 await updateRelationshipsList();
-                if (errors.length > 0) {
-                    showStatus(`Removed ${deletedCount} notes, ${errors.length} errors`, deletedCount > 0 ? 'success' : 'error');
-                } else {
-                    showStatus(`Successfully removed ${deletedCount} notes`, 'success');
-                }
+
+                if (errors.length > 0) showStatus(`Removed ${deletedCount} notes, ${errors.length} errors`, deletedCount > 0 ? 'success' : 'error');
+                else showStatus(`Successfully removed ${deletedCount} notes`, 'success');
             } catch (error) {
                 console.error('Error deleting relationship:', error);
                 showStatus('Error deleting relationship: ' + error.message, 'error');
             }
-        }
+        };
 
         async function recalculateResult(resultId, calcData) {
             try {
                 const sourceValues = [];
                 for (const sourceId of calcData.sourceIds) {
                     try {
-                        const sourceItem = await miro.board.getById(sourceId);
-                        if (sourceItem && sourceItem.type === 'sticky_note' && sourceItem.content) {
-                            const cleanContent = sourceItem.content.replace(/<[^>]*>/g, '').trim();
-                            const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
-                            if (match) {
-                                sourceValues.push(parseFloat(match[1]));
-                            } else {
-                                const num = parseFloat(cleanContent);
-                                if (!isNaN(num)) {
-                                    sourceValues.push(num);
-                                }
+                        const src = await miro.board.getById(sourceId);
+                        if (src && src.type === 'sticky_note' && src.content) {
+                            const clean = src.content.replace(/<[^>]*>/g, '').trim();
+                            const match = clean.match(/\((\d+)\)/) || clean.match(/^(\d+)$/);
+                            if (match) sourceValues.push(parseFloat(match[1]));
+                            else {
+                                const num = parseFloat(clean);
+                                if (!isNaN(num)) sourceValues.push(num);
                             }
                         }
-                    } catch (error) { }
+                    } catch { /* ignore */ }
                 }
                 if (sourceValues.length < 2) {
-                    try {
-                        const resultNote = await miro.board.getById(resultId);
-                        if (resultNote) {
-                            await miro.board.remove(resultNote);
-                        }
-                        calculatorNotes.delete(resultId);
-                        updateNotesInRelationships();
-                        await saveCalculatorData();
-                        updateRelationshipsCount();
-                    } catch (error) {
-                        calculatorNotes.delete(resultId);
-                        updateNotesInRelationships();
-                        await saveCalculatorData();
-                        updateRelationshipsCount();
-                    }
+                    try { const resultNote = await miro.board.getById(resultId); if (resultNote) await miro.board.remove(resultNote); } catch { }
+                    calculatorNotes.delete(resultId);
+                    updateNotesInRelationships();
+                    await saveCalculatorData();
+                    updateRelationshipsCount();
                     return;
                 }
-                let newResult;
-                if (calcData.operation === 'sum') {
-                    newResult = sourceValues.reduce((a, b) => a + b, 0);
-                } else {
-                    newResult = sourceValues.reduce((a, b) => a * b, 1);
-                }
+                const newResult = calcData.operation === 'sum'
+                    ? sourceValues.reduce((a, b) => a + b, 0)
+                    : sourceValues.reduce((a, b) => a * b, 1);
                 try {
                     const resultItem = await miro.board.getById(resultId);
-                    if (resultItem) {
-                        resultItem.content = newResult.toString();
-                        await resultItem.sync();
-                    }
-                } catch (error) {
+                    if (resultItem) { resultItem.content = newResult.toString(); await resultItem.sync(); }
+                } catch {
                     calculatorNotes.delete(resultId);
                     updateNotesInRelationships();
                     await saveCalculatorData();
                 }
-            } catch (error) {
-                console.error('Error in recalculateResult:', error);
-            }
+            } catch (error) { console.error('Error in recalculateResult:', error); }
         }
 
         async function recheckAllCalculatorNotes() {
@@ -1361,25 +1176,17 @@
                 for (const [resultId, calcData] of calculatorNotes.entries()) {
                     await recalculateResult(resultId, calcData);
                 }
-            } catch (error) {
-                console.error('Error in recheckAllCalculatorNotes:', error);
-            }
+            } catch (error) { console.error('Error in recheckAllCalculatorNotes:', error); }
         }
 
         function throttledUpdateUI() {
             const now = Date.now();
-            if (now - lastUIUpdate > 1000) {
-                lastUIUpdate = now;
-                updateUI();
-            }
+            if (now - lastUIUpdate > 1000) { lastUIUpdate = now; updateUI(); }
         }
 
         function throttledRecheckAllCalculatorNotes() {
             const now = Date.now();
-            if (now - lastCalculatorCheck > 10000) {
-                lastCalculatorCheck = now;
-                recheckAllCalculatorNotes();
-            }
+            if (now - lastCalculatorCheck > 10000) { lastCalculatorCheck = now; recheckAllCalculatorNotes(); }
         }
 
         async function updateUI() {
@@ -1387,37 +1194,25 @@
                 if (updateUI.isRunning) return;
                 updateUI.isRunning = true;
                 const selection = await miro.board.getSelection();
-                if (!selection || !Array.isArray(selection)) {
-                    updateUI.isRunning = false;
-                    return;
-                }
+                if (!selection || !Array.isArray(selection)) { updateUI.isRunning = false; return; }
                 const numbers = [];
                 let hasCalculatorResult = false;
-                for (let i = 0; i < selection.length; i++) {
-                    const item = selection[i];
-                    if (item.type === 'sticky_note') {
-                        if (calculatorNotes.has(item.id)) {
-                            hasCalculatorResult = true;
-                            if (item.content) {
-                                let cleanContent = item.content.trim();
-                                cleanContent = cleanContent.replace(/<[^>]*>/g, '');
-                                const num = parseFloat(cleanContent);
-                                if (!isNaN(num)) {
-                                    numbers.push(num);
-                                }
-                            }
-                        } else if (item.content) {
-                            let cleanContent = item.content.trim();
-                            cleanContent = cleanContent.replace(/<[^>]*>/g, '');
-                            const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
-                            if (match) {
-                                numbers.push(parseFloat(match[1]));
-                            } else {
-                                const num = parseFloat(cleanContent);
-                                if (!isNaN(num)) {
-                                    numbers.push(num);
-                                }
-                            }
+                for (const item of selection) {
+                    if (item.type !== 'sticky_note') continue;
+                    if (calculatorNotes.has(item.id)) {
+                        hasCalculatorResult = true;
+                        if (item.content) {
+                            let clean = item.content.trim().replace(/<[^>]*>/g, '');
+                            const num = parseFloat(clean);
+                            if (!isNaN(num)) numbers.push(num);
+                        }
+                    } else if (item.content) {
+                        let clean = item.content.trim().replace(/<[^>]*>/g, '');
+                        const match = clean.match(/\((\d+)\)/) || clean.match(/^(\d+)$/);
+                        if (match) numbers.push(parseFloat(match[1]));
+                        else {
+                            const num = parseFloat(clean);
+                            if (!isNaN(num)) numbers.push(num);
                         }
                     }
                 }
@@ -1432,22 +1227,14 @@
                 if (expandBtn) expandBtn.disabled = !canExpand;
                 if (selectionDiv) {
                     let text;
-                    if (canExpand) {
-                        text = `Can expand relationship: ${numbers.length} new number(s) selected`;
-                    } else if (hasEnough) {
-                        text = `${numbers.length} numbers selected: [${numbers.join(', ')}]`;
-                    } else {
-                        text = `Selected: ${selection.length} items (need 2+ numbers for calc, or 1+ numbers + result for expand)`;
-                    }
+                    if (canExpand) text = `Can expand relationship: ${numbers.length} new number(s) selected`;
+                    else if (hasEnough) text = `${numbers.length} numbers selected: [${numbers.join(', ')}]`;
+                    else text = `Selected: ${selection.length} items (need 2+ numbers for calc, or 1+ numbers + result for expand)`;
                     selectionDiv.textContent = text;
                 }
-            } catch (error) {
-                console.error('Error in updateUI:', error);
-            } finally {
-                updateUI.isRunning = false;
-            }
+            } catch (error) { console.error('Error in updateUI:', error); }
+            finally { updateUI.isRunning = false; }
         }
-
     </script>
 </body>
 </html>
