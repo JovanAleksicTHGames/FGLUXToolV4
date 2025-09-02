@@ -1207,11 +1207,12 @@
 
         function throttledRecheckAllCalculatorNotes() {
             const now = Date.now();
-            if (now - lastCalculatorCheck > 20000) {  // 20 seconds between rechecks
+            if (now - lastCalculatorCheck > 10000) {
                 lastCalculatorCheck = now;
                 recheckAllCalculatorNotes();
             }
         }
+
 
         async function updateUI() {
             try {
@@ -1630,18 +1631,16 @@
             }
         }
 
-        // Initialize when the page loads
-        if (document.readyState === 'loading') {
+        if (document.readyState === 'loading')
+        {
             document.addEventListener('DOMContentLoaded', init);
-        } else {
+        }
+        else
+        {
             init();
         }
 
-        if (document.readyState === 'complete')
-        {
-            window.addEventListener('beforeunload', cleanup);
-            window.addEventListener('unload', cleanup);
-        }
+        
 
     </script>
 </body>
