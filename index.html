@@ -52,18 +52,18 @@
             align-items: center;
         }
 
-            .globals-grid label {
-                font-size: 12px;
-                font-weight: 500;
-            }
+        .globals-grid label {
+            font-size: 12px;
+            font-weight: 500;
+        }
 
-            .globals-grid input {
-                padding: 4px 6px;
-                border: 1px solid #ced4da;
-                border-radius: 3px;
-                font-size: 11px;
-                text-align: center;
-            }
+        .globals-grid input {
+            padding: 4px 6px;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+            font-size: 11px;
+            text-align: center;
+        }
 
         button {
             width: 100%;
@@ -76,25 +76,10 @@
             font-weight: 500;
         }
 
-        .btn-sum {
-            background: #ffc107;
-            color: #000;
-        }
-
-        .btn-product {
-            background: #28a745;
-            color: white;
-        }
-
-        .btn-spawn {
-            background: #6c757d;
-            color: white;
-        }
-
-        .btn-expand {
-            background: #17a2b8;
-            color: white;
-        }
+        .btn-sum { background: #ffc107; color: #000; }
+        .btn-product { background: #28a745; color: white; }
+        .btn-spawn { background: #6c757d; color: white; }
+        .btn-expand { background: #17a2b8; color: white; }
 
         button:disabled {
             background: #e9ecef;
@@ -102,9 +87,7 @@
             cursor: not-allowed;
         }
 
-        button:hover:not(:disabled) {
-            opacity: 0.9;
-        }
+        button:hover:not(:disabled) { opacity: 0.9; }
 
         #selection {
             padding: 8px;
@@ -129,30 +112,11 @@
             border: 1px solid #dee2e6;
         }
 
-        .barrel-small {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .barrel-medium {
-            background: #ffeaa7;
-            color: #6c5400;
-        }
-
-        .barrel-big {
-            background: #fdcb6e;
-            color: #5a4a00;
-        }
-
-        .dig {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .crate {
-            background: #d1ecf1;
-            color: #0c5460;
-        }
+        .barrel-small { background: #fff3cd; color: #856404; }
+        .barrel-medium { background: #ffeaa7; color: #6c5400; }
+        .barrel-big { background: #fdcb6e; color: #5a4a00; }
+        .dig { background: #d4edda; color: #155724; }
+        .crate { background: #d1ecf1; color: #0c5460; }
 
         .pool-controls {
             display: flex;
@@ -161,7 +125,7 @@
             flex-direction: column;
         }
 
-        .pool-select {
+        .pool-select, .pool-input, .spawn-input {
             padding: 6px;
             border: 1px solid #ced4da;
             border-radius: 3px;
@@ -169,39 +133,12 @@
             background: white;
         }
 
-        .pool-input {
-            padding: 6px;
-            border: 1px solid #ced4da;
-            border-radius: 3px;
-            font-size: 11px;
-            text-align: center;
-        }
+        .pool-input, .spawn-input { text-align: center; }
 
-        .pool-btn {
-            flex: 1;
-            padding: 6px;
-            font-size: 11px;
-        }
+        .pool-btn { flex: 1; padding: 6px; font-size: 11px; }
+        .pool-create { background: #007bff; color: white; border: 1px solid #007bff; }
 
-        .pool-create {
-            background: #007bff;
-            color: white;
-            border: 1px solid #007bff;
-        }
-
-        .spawn-input {
-            width: 100%;
-            padding: 6px;
-            border: 1px solid #ced4da;
-            border-radius: 3px;
-            margin: 4px 0;
-            font-size: 12px;
-            box-sizing: border-box;
-        }
-
-        .relationships-section {
-            margin-top: 15px;
-        }
+        .relationships-section { margin-top: 15px; }
 
         .toggle-btn {
             width: 100%;
@@ -213,10 +150,7 @@
             font-size: 11px;
             text-align: left;
         }
-
-            .toggle-btn:hover {
-                background: #e9ecef;
-            }
+        .toggle-btn:hover { background: #e9ecef; }
 
         .relationships-list {
             border: 1px solid #dee2e6;
@@ -235,14 +169,8 @@
             border-left: 3px solid #007bff;
             font-size: 11px;
         }
-
-            .relationship-item.sum {
-                border-left-color: #ffc107;
-            }
-
-            .relationship-item.product {
-                border-left-color: #28a745;
-            }
+        .relationship-item.sum { border-left-color: #ffc107; }
+        .relationship-item.product { border-left-color: #28a745; }
 
         .relationship-header {
             font-weight: 600;
@@ -262,11 +190,7 @@
             cursor: pointer;
         }
 
-        .relationship-sources {
-            font-size: 10px;
-            color: #666;
-            margin-bottom: 4px;
-        }
+        .relationship-sources { font-size: 10px; color: #666; margin-bottom: 4px; }
 
         .relationship-actions {
             display: flex;
@@ -274,32 +198,11 @@
             margin-top: 6px;
         }
 
-        .action-btn {
-            flex: 1;
-            font-size: 9px;
-            padding: 3px 6px;
-            margin: 0;
-        }
-
-        .goto-btn {
-            background: #007bff;
-            color: white;
-        }
-
-        .select-parents-btn {
-            background: #28a745;
-            color: white;
-        }
-
-        .rename-btn {
-            background: #17a2b8;
-            color: white;
-        }
-
-        .delete-btn {
-            background: #dc3545;
-            color: white;
-        }
+        .action-btn { flex: 1; font-size: 9px; padding: 3px 6px; margin: 0; }
+        .goto-btn { background: #007bff; color: white; }
+        .select-parents-btn { background: #28a745; color: white; }
+        .rename-btn { background: #17a2b8; color: white; }
+        .delete-btn { background: #dc3545; color: white; }
 
         #status {
             margin-top: 10px;
@@ -308,28 +211,16 @@
             display: none;
             font-size: 12px;
         }
-
-        .success {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
 
         .modal {
             display: none;
             position: fixed;
             z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
+            left: 0; top: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.4);
         }
-
         .modal-content {
             background-color: #fefefe;
             margin: 15% auto;
@@ -339,7 +230,6 @@
             width: 250px;
             text-align: center;
         }
-
         .modal input {
             width: 100%;
             padding: 8px;
@@ -348,12 +238,7 @@
             border-radius: 4px;
             box-sizing: border-box;
         }
-
-        .modal button {
-            margin: 5px;
-            padding: 8px 16px;
-            font-size: 12px;
-        }
+        .modal button { margin: 5px; padding: 8px 16px; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -440,11 +325,12 @@
     </div>
 
     <script>
-        //insert JavaScriot Here
-
         let isInitialized = false;
         let calculatorNotes = new Map();
         let spawnedResources = new Map();
+        let lastUIUpdate = 0;
+        let lastCalculatorCheck = 0;
+        let currentRenamingId = null;
         let globalVariables = {
             barrelSmall: 5,
             barrelMedium: 10,
@@ -460,9 +346,7 @@
                 status.textContent = message;
                 status.className = type;
                 status.style.display = 'block';
-                setTimeout(() => {
-                    status.style.display = 'none';
-                }, 3000);
+                setTimeout(() => { status.style.display = 'none'; }, 3000);
             }
         }
 
@@ -487,9 +371,7 @@
                         crateValue: document.getElementById('crateValue')
                     };
                     for (const [key, input] of Object.entries(inputs)) {
-                        if (input && globalVariables[key]) {
-                            input.value = globalVariables[key];
-                        }
+                        if (input && globalVariables[key]) input.value = globalVariables[key];
                     }
                 }
             } catch (error) {
@@ -500,9 +382,7 @@
         async function saveSpawnedResourcesData() {
             try {
                 for (const [type, ids] of spawnedResources.entries()) {
-                    if (ids.length > 50) {
-                        spawnedResources.set(type, ids.slice(-50));
-                    }
+                    if (ids.length > 50) spawnedResources.set(type, ids.slice(-50));
                 }
                 const data = Object.fromEntries(spawnedResources);
                 await miro.board.storage.set('spawnedResources', data);
@@ -537,14 +417,174 @@
                 for (const resourceId of resourceIds) {
                     try {
                         const [resource] = await miro.board.get({ id: resourceId });
-                        if (resource && resource.type === 'sticky_note') {
-                            validIds.push(resourceId);
-                        }
-                    } catch (error) { }
+                        if (resource && resource.type === 'sticky_note') validIds.push(resourceId);
+                    } catch (error) { /* ignore */ }
                 }
                 spawnedResources.set(resourceType, validIds);
             }
             await saveSpawnedResourcesData();
+        }
+
+        function getGlobalValue(type, size) {
+            if (type === 'barrel') {
+                switch (size) {
+                    case 'small': return globalVariables.barrelSmall || 5;
+                    case 'medium': return globalVariables.barrelMedium || 10;
+                    case 'big': return globalVariables.barrelBig || 20;
+                }
+            } else if (type === 'dig') {
+                return globalVariables.digValue || 3;
+            } else if (type === 'crate') {
+                return globalVariables.crateValue || 15;
+            }
+            return 5;
+        }
+
+        async function createResource(type, size) {
+            try {
+                const viewport = await miro.board.viewport.get();
+                const centerX = viewport.x + (viewport.width / 2);
+                const centerY = viewport.y + (viewport.height / 2);
+
+                let content, fillColor, resourceType;
+
+                if (type === 'barrel') {
+                    const value = getGlobalValue(type, size);
+                    content = `${size.charAt(0).toUpperCase() + size.slice(1)} Barrel (${value})`;
+                    resourceType = `barrel-${size}`;
+                    switch (size) {
+                        case 'small': fillColor = 'light_yellow'; break;
+                        case 'medium': fillColor = 'yellow'; break;
+                        case 'big': fillColor = 'orange'; break;
+                    }
+                } else if (type === 'dig') {
+                    const value = globalVariables.digValue || 3;
+                    content = `Dig (${value})`;
+                    fillColor = 'light_green';
+                    resourceType = 'dig';
+                } else if (type === 'crate') {
+                    const value = globalVariables.crateValue || 15;
+                    content = `Crate (${value})`;
+                    fillColor = 'light_blue';
+                    resourceType = 'crate';
+                }
+
+                const resource = await miro.board.createStickyNote({
+                    content, x: centerX + (Math.random() - 0.5) * 100,
+                    y: centerY + (Math.random() - 0.5) * 100,
+                    style: { fillColor }
+                });
+
+                if (!spawnedResources.has(resourceType)) spawnedResources.set(resourceType, []);
+                spawnedResources.get(resourceType).push(resource.id);
+                await saveSpawnedResourcesData();
+
+                await miro.board.viewport.zoomTo(resource);
+                showStatus(`Created ${content}`, 'success');
+            } catch (error) {
+                console.error('Error creating resource:', error);
+                showStatus('Error creating resource: ' + error.message, 'error');
+            }
+        }
+
+        async function createResourcePoolHandler() {
+            try {
+                const resourceTypeSelect = document.getElementById('resourceTypeSelect');
+                const poolQuantityInput = document.getElementById('poolQuantity');
+                if (!resourceTypeSelect || !poolQuantityInput) {
+                    showStatus('Error: UI elements not found', 'error');
+                    return;
+                }
+                const resourceType = resourceTypeSelect.value;
+                const quantity = parseInt(poolQuantityInput.value) || 3;
+                if (quantity < 2 || quantity > 20) {
+                    showStatus('Please enter a quantity between 2 and 20', 'error');
+                    return;
+                }
+                const viewport = await miro.board.viewport.get();
+                const centerX = viewport.x + (viewport.width / 2);
+                const centerY = viewport.y + (viewport.height / 2);
+
+                let content, value, fillColor;
+                const [type, size] = resourceType.split('-');
+                if (type === 'barrel') {
+                    switch (size) {
+                        case 'small':
+                            value = globalVariables.barrelSmall || 5;
+                            content = `Small Barrel (${value})`;
+                            fillColor = 'light_yellow';
+                            break;
+                        case 'medium':
+                            value = globalVariables.barrelMedium || 10;
+                            content = `Med Barrel (${value})`;
+                            fillColor = 'yellow';
+                            break;
+                        case 'big':
+                            value = globalVariables.barrelBig || 20;
+                            content = `Big Barrel (${value})`;
+                            fillColor = 'orange';
+                            break;
+                        default:
+                            value = 5; content = 'Barrel (5)'; fillColor = 'light_yellow';
+                    }
+                } else if (type === 'dig') {
+                    value = globalVariables.digValue || 3;
+                    content = `Dig (${value})`;
+                    fillColor = 'light_green';
+                } else if (type === 'crate') {
+                    value = globalVariables.crateValue || 15;
+                    content = `Crate (${value})`;
+                    fillColor = 'light_blue';
+                }
+
+                const spacing = 250;
+                const startX = centerX - ((quantity - 1) * spacing / 2);
+                const resourceNotes = [];
+                for (let i = 0; i < quantity; i++) {
+                    const resource = await miro.board.createStickyNote({
+                        content, x: startX + (i * spacing), y: centerY,
+                        style: { fillColor }
+                    });
+                    resourceNotes.push(resource);
+                    if (!spawnedResources.has(resourceType)) spawnedResources.set(resourceType, []);
+                    spawnedResources.get(resourceType).push(resource.id);
+                }
+
+                const totalValue = parseInt(value) * quantity;
+                const lastResource = resourceNotes[resourceNotes.length - 1];
+                const sumX = lastResource.x + (lastResource.width || 200) + 100;
+                const sumY = lastResource.y;
+
+                const sumNote = await miro.board.createStickyNote({
+                    content: totalValue.toString(), x: sumX, y: sumY, style: { fillColor }
+                });
+
+                const sourceIds = resourceNotes.map(note => note.id);
+                calculatorNotes.set(sumNote.id, {
+                    operation: 'sum',
+                    sourceIds,
+                    name: `POOL_${type.toUpperCase()}_${Date.now().toString().slice(-6)}`,
+                    created: Date.now()
+                });
+
+                updateNotesInRelationships();
+                await saveCalculatorData();
+                await saveSpawnedResourcesData();
+                updateRelationshipsCount();
+
+                const relationshipsList = document.getElementById('relationshipsList');
+                if (relationshipsList && relationshipsList.style.display !== 'none') {
+                    await updateRelationshipsList();
+                }
+
+                const allItems = [...resourceNotes, sumNote];
+                await miro.board.viewport.zoomTo(allItems);
+
+                showStatus(`Created resource pool: ${quantity}x ${content} = ${totalValue}`, 'success');
+            } catch (error) {
+                console.error('Error creating resource pool:', error);
+                showStatus('Error creating resource pool: ' + error.message, 'error');
+            }
         }
 
         function setupUI() {
@@ -556,12 +596,173 @@
                 if (productBtn) productBtn.addEventListener('click', () => calculate('product'));
                 if (expandBtn) expandBtn.addEventListener('click', expandRelationship);
 
-                // other UI setup unchanged...
+                const createBarrelSmall = document.getElementById('createBarrelSmall');
+                const createBarrelMedium = document.getElementById('createBarrelMedium');
+                const createBarrelBig = document.getElementById('createBarrelBig');
+                const createDig = document.getElementById('createDig');
+                const createCrate = document.getElementById('createCrate');
+                if (createBarrelSmall) createBarrelSmall.addEventListener('click', () => createResource('barrel', 'small'));
+                if (createBarrelMedium) createBarrelMedium.addEventListener('click', () => createResource('barrel', 'medium'));
+                if (createBarrelBig) createBarrelBig.addEventListener('click', () => createResource('barrel', 'big'));
+                if (createDig) createDig.addEventListener('click', () => createResource('dig', 'standard'));
+                if (createCrate) createCrate.addEventListener('click', () => createResource('crate', 'standard'));
 
-                // FIX: selection event
+                const barrelSmallInput = document.getElementById('barrelSmall');
+                const barrelMediumInput = document.getElementById('barrelMedium');
+                const barrelBigInput = document.getElementById('barrelBig');
+                const digValueInput = document.getElementById('digValue');
+                const crateValueInput = document.getElementById('crateValue');
+                if (barrelSmallInput) barrelSmallInput.addEventListener('input', () => {
+                    const value = parseInt(barrelSmallInput.value);
+                    globalVariables.barrelSmall = value > 0 ? value : 5;
+                    if (value <= 0) barrelSmallInput.value = 5;
+                    saveGlobalVariables();
+                    // updateResourceValues('barrel-small'); // (function not present)
+                });
+                if (barrelMediumInput) barrelMediumInput.addEventListener('input', () => {
+                    const value = parseInt(barrelMediumInput.value);
+                    globalVariables.barrelMedium = value > 0 ? value : 10;
+                    if (value <= 0) barrelMediumInput.value = 10;
+                    saveGlobalVariables();
+                });
+                if (barrelBigInput) barrelBigInput.addEventListener('input', () => {
+                    const value = parseInt(barrelBigInput.value);
+                    globalVariables.barrelBig = value > 0 ? value : 20;
+                    if (value <= 0) barrelBigInput.value = 20;
+                    saveGlobalVariables();
+                });
+                if (digValueInput) digValueInput.addEventListener('input', () => {
+                    const value = parseInt(digValueInput.value);
+                    globalVariables.digValue = value > 0 ? value : 3;
+                    if (value <= 0) digValueInput.value = 3;
+                    saveGlobalVariables();
+                });
+                if (crateValueInput) crateValueInput.addEventListener('input', () => {
+                    const value = parseInt(crateValueInput.value);
+                    globalVariables.crateValue = value > 0 ? value : 15;
+                    if (value <= 0) crateValueInput.value = 15;
+                    saveGlobalVariables();
+                });
+
+                const createResourcePoolBtn = document.getElementById('createResourcePool');
+                if (createResourcePoolBtn) createResourcePoolBtn.addEventListener('click', createResourcePoolHandler);
+
+                const spawnBtn = document.getElementById('spawnBtn');
+                if (spawnBtn) spawnBtn.addEventListener('click', spawnConnectedNumbers);
+
+                const toggleBtn = document.getElementById('toggleRelationships');
+                const relationshipsList = document.getElementById('relationshipsList');
+                if (toggleBtn && relationshipsList) {
+                    toggleBtn.addEventListener('click', () => {
+                        const isVisible = relationshipsList.style.display !== 'none';
+                        relationshipsList.style.display = isVisible ? 'none' : 'block';
+                        const countSpan = document.getElementById('relationshipCount');
+                        const count = countSpan ? countSpan.textContent : '0';
+                        toggleBtn.innerHTML = isVisible
+                            ? `▼ Show Relationships (<span id="relationshipCount">${count}</span>)`
+                            : `▲ Hide Relationships (<span id="relationshipCount">${count}</span>)`;
+                        if (!isVisible) updateRelationshipsList();
+                    });
+                }
+
+                const confirmRename = document.getElementById('confirmRename');
+                const cancelRename = document.getElementById('cancelRename');
+                if (confirmRename) confirmRename.addEventListener('click', confirmRenameHandler);
+                if (cancelRename) cancelRename.addEventListener('click', cancelRenameHandler);
+
+                // Selection update listener (v2)
                 miro.board.ui.on('selection:update', throttledUpdateUI);
+
+                setTimeout(throttledUpdateUI, 1000);
+
+                setInterval(() => {
+                    if (calculatorNotes.size > 0) throttledRecheckAllCalculatorNotes();
+                }, 10000);
             } catch (error) {
                 console.error('Error setting up UI:', error);
+            }
+        }
+
+        async function spawnConnectedNumbers() {
+            try {
+                const countInput = document.getElementById('spawnCount');
+                const count = parseInt(countInput ? countInput.value : 3) || 3;
+                if (count < 1 || count > 20) {
+                    showStatus('Please enter a number between 1 and 20', 'error');
+                    return;
+                }
+                const spacing = 400;
+                const viewport = await miro.board.viewport.get();
+                const centerX = viewport.x + (viewport.width / 2);
+                const centerY = viewport.y + (viewport.height / 2);
+                const stickyNotes = [];
+                const startX = centerX - ((count - 1) * spacing / 2);
+                const startY = centerY;
+                for (let i = 0; i < count; i++) {
+                    const stickyNote = await miro.board.createStickyNote({
+                        content: `${i + 1}`,
+                        x: startX + (i * spacing),
+                        y: startY,
+                        style: { fillColor: 'light_blue' }
+                    });
+                    stickyNotes.push(stickyNote);
+                }
+                for (let i = 0; i < stickyNotes.length - 1; i++) {
+                    try {
+                        await miro.board.createConnector({
+                            start: { item: stickyNotes[i].id, snapTo: 'bottom' },
+                            end: { item: stickyNotes[i + 1].id, snapTo: 'top' },
+                            style: { strokeColor: '#1976d2', strokeWidth: 2 }
+                        });
+                    } catch (connectorError) {
+                        console.log('Could not create connector:', connectorError.message);
+                    }
+                }
+                if (stickyNotes.length > 0) await miro.board.viewport.zoomTo(stickyNotes);
+                showStatus(`Spawned ${count} connected numbers`, 'success');
+            } catch (error) {
+                console.error('Error spawning numbers:', error);
+                showStatus('Error spawning numbers: ' + error.message, 'error');
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+        async function init() {
+            if (isInitialized) return;
+            try {
+                if (typeof miro === 'undefined') {
+                    setTimeout(init, 100);
+                    return;
+                }
+                setupUI();
+                await loadGlobalVariables();
+                await loadCalculatorData();
+                await loadSpawnedResourcesData();
+                updateRelationshipsCount();
+                updateNotesInRelationships();
+                isInitialized = true;
+            } catch (error) {
+                console.error('Init error:', error);
+                setTimeout(init, 500);
+            }
+        }
+
+        // --- Calculator, Relationships, Cleanup, and Advanced Logic ---
+
+        function updateRelationshipsCount() {
+            const countElement = document.getElementById('relationshipCount');
+            if (countElement) countElement.textContent = calculatorNotes.size;
+        }
+
+        function updateNotesInRelationships() {
+            notesInRelationships.clear();
+            for (const [, calcData] of calculatorNotes.entries()) {
+                for (const sourceId of calcData.sourceIds) notesInRelationships.add(sourceId);
             }
         }
 
@@ -590,40 +791,49 @@
             }
         }
 
+        async function preciseCleanup() {
+            const allItems = await miro.board.get({ type: ['sticky_note'] });
+            const validIds = new Set(allItems.filter(i => i.type === 'sticky_note').map(i => i.id));
+            const toDelete = [];
+            for (const [resultId, calcData] of calculatorNotes.entries()) {
+                if (!validIds.has(resultId)) { toDelete.push(resultId); continue; }
+                const validSources = calcData.sourceIds.filter(id => validIds.has(id));
+                if (validSources.length < 2) { toDelete.push(resultId); continue; }
+                calcData.sourceIds = validSources;
+                calculatorNotes.set(resultId, calcData);
+            }
+            for (const resultId of toDelete) calculatorNotes.delete(resultId);
+            if (calculatorNotes.size > 50) {
+                const sorted = Array.from(calculatorNotes.entries())
+                    .sort((a, b) => (b[1].created || 0) - (a[1].created || 0))
+                    .slice(0, 50);
+                calculatorNotes = new Map(sorted);
+            }
+        }
+
         async function updateRelationshipsList() {
             const content = document.getElementById('relationshipsContent');
             if (!content) return;
-
             await preciseCleanup();
             if (calculatorNotes.size === 0) {
                 content.innerHTML = 'No calculator relationships found';
                 return;
             }
-
             let html = '';
             for (const [resultId, calcData] of calculatorNotes.entries()) {
                 let resultContent = '';
                 try {
                     const [resultNote] = await miro.board.get({ id: resultId });
-                    if (resultNote) {
-                        resultContent = resultNote.content.replace(/<[^>]*>/g, '').trim();
-                    }
-                } catch { }
-
-                let sourceContents = [];
+                    if (resultNote) resultContent = resultNote.content.replace(/<[^>]*>/g, '').trim();
+                } catch { /* ignore */ }
+                const sourceContents = [];
                 for (const sourceId of calcData.sourceIds) {
                     try {
                         const [sourceNote] = await miro.board.get({ id: sourceId });
-                        if (sourceNote) {
-                            sourceContents.push(sourceNote.content.replace(/<[^>]*>/g, '').trim());
-                        } else {
-                            sourceContents.push('[deleted]');
-                        }
-                    } catch {
-                        sourceContents.push('[deleted]');
-                    }
+                        if (sourceNote) sourceContents.push(sourceNote.content.replace(/<[^>]*>/g, '').trim());
+                        else sourceContents.push('[deleted]');
+                    } catch { sourceContents.push('[deleted]'); }
                 }
-
                 html += `
             <div class="relationship-item ${calcData.operation}">
                 <div class="relationship-header">
@@ -645,16 +855,14 @@
                 </div>
             </div>`;
             }
-
             content.innerHTML = html;
 
-            // ✅ Null-safe onclick assignment
+            // Null-safe assignment to avoid "Cannot set properties of null (setting 'onclick')"
             if (content) {
                 content.onclick = function (event) {
                     const target = event.target;
                     const resultId = target.getAttribute('data-result-id');
                     if (!resultId) return;
-
                     if (target.classList.contains('goto-btn') || target.classList.contains('goto-result')) {
                         goToResultNote(resultId);
                     } else if (target.classList.contains('select-parents-btn')) {
@@ -668,7 +876,352 @@
             }
         }
 
-        
+        async function calculate(operation) {
+            try {
+                const selection = await miro.board.selection.get();
+                const validItems = selection.filter(item => item.type === 'sticky_note' && item.content);
+                const numbers = validItems
+                    .map(item => {
+                        const cleanContent = item.content.replace(/<[^>]*>/g, '').trim();
+                        const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
+                        if (match) return parseFloat(match[1]);
+                        const num = parseFloat(cleanContent);
+                        return isNaN(num) ? null : num;
+                    })
+                    .filter(n => n !== null);
+                if (numbers.length < 2) {
+                    showStatus('Please select at least 2 items with numbers', 'error');
+                    return;
+                }
+                const result = operation === 'sum'
+                    ? numbers.reduce((a, b) => a + b, 0)
+                    : numbers.reduce((a, b) => a * b, 1);
+                const lastItem = validItems[validItems.length - 1];
+                const newX = lastItem.x + (lastItem.width || 200) + 50;
+                const newY = lastItem.y;
+                const fillColor = operation === 'sum' ? 'light_yellow' : 'dark_green';
+                const calculatorNote = await miro.board.createStickyNote({
+                    content: result.toString(), x: newX, y: newY, style: { fillColor }
+                });
+                const sourceIds = validItems.map(item => item.id);
+                calculatorNotes.set(calculatorNote.id, {
+                    operation, sourceIds, name: `${operation.toUpperCase()}_${Date.now().toString().slice(-6)}`, created: Date.now()
+                });
+                updateNotesInRelationships();
+                await preciseCleanup();
+                await saveCalculatorData();
+                updateRelationshipsCount();
+                await miro.board.viewport.zoomTo(calculatorNote);
+                await updateRelationshipsList();
+                showStatus(`${operation} created: ${result}`, 'success');
+            } catch (error) {
+                console.error('Error in calculate:', error);
+                showStatus('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function expandRelationship() {
+            try {
+                const selection = await miro.board.selection.get();
+                let calculatorResultId = null;
+                const newSourceItems = [];
+                for (const item of selection) {
+                    if (item.type === 'sticky_note') {
+                        if (calculatorNotes.has(item.id)) {
+                            if (calculatorResultId) {
+                                showStatus('Please select only one calculator result to expand', 'error');
+                                return;
+                            }
+                            calculatorResultId = item.id;
+                        } else if (item.content) {
+                            const cleanContent = item.content.replace(/<[^>]*>/g, '').trim();
+                            const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
+                            if (match) newSourceItems.push(item);
+                            else {
+                                const num = parseFloat(cleanContent);
+                                if (!isNaN(num)) newSourceItems.push(item);
+                            }
+                        }
+                    }
+                }
+                if (!calculatorResultId || newSourceItems.length === 0) {
+                    showStatus('Please select a calculator result and at least one number note', 'error');
+                    return;
+                }
+                const calcData = calculatorNotes.get(calculatorResultId);
+                if (!calcData) {
+                    showStatus('Calculator relationship not found', 'error');
+                    return;
+                }
+                const newSourceIds = newSourceItems.map(item => item.id);
+                const updatedSourceIds = [...calcData.sourceIds, ...newSourceIds];
+                calcData.sourceIds = updatedSourceIds;
+                calculatorNotes.set(calculatorResultId, calcData);
+                updateNotesInRelationships();
+                await recalculateResult(calculatorResultId, calcData);
+                await saveCalculatorData();
+                await updateRelationshipsList();
+                showStatus(`Added ${newSourceItems.length} item(s) to ${calcData.operation} relationship`, 'success');
+            } catch (error) {
+                console.error('Error expanding relationship:', error);
+                showStatus('Error expanding relationship: ' + error.message, 'error');
+            }
+        }
+
+        window.goToResultNote = async function (resultId) {
+            try {
+                const [resultNote] = await miro.board.get({ id: resultId });
+                if (resultNote) {
+                    await miro.board.viewport.zoomTo(resultNote);
+                    await miro.board.selection.select(resultNote);
+                    showStatus('Navigated to result note', 'success');
+                } else {
+                    showStatus('Result note not found', 'error');
+                }
+            } catch (error) {
+                console.error('Error navigating to result note:', error);
+                showStatus('Error: Result note may have been deleted', 'error');
+            }
+        }
+
+        window.selectParents = async function (resultId) {
+            try {
+                const calcData = calculatorNotes.get(resultId);
+                if (!calcData) {
+                    showStatus('Relationship not found', 'error');
+                    return;
+                }
+                const parentNotes = [];
+                let validParentCount = 0;
+                for (const sourceId of calcData.sourceIds) {
+                    try {
+                        const [sourceNote] = await miro.board.get({ id: sourceId });
+                        if (sourceNote) { parentNotes.push(sourceNote); validParentCount++; }
+                    } catch (error) { /* ignore */ }
+                }
+                if (parentNotes.length > 0) {
+                    await miro.board.selection.select(parentNotes);
+                    await miro.board.viewport.zoomTo(parentNotes);
+                    showStatus(`Selected ${validParentCount} parent notes`, 'success');
+                } else {
+                    showStatus('No parent notes found', 'error');
+                }
+            } catch (error) {
+                console.error('Error selecting parent notes:', error);
+                showStatus('Error selecting parent notes: ' + error.message, 'error');
+            }
+        }
+
+        window.startRename = function (resultId) {
+            currentRenamingId = resultId;
+            const calcData = calculatorNotes.get(resultId);
+            const currentName = calcData ? calcData.name : 'Unnamed';
+            const renameInput = document.getElementById('renameInput');
+            const renameModal = document.getElementById('renameModal');
+            if (renameInput) renameInput.value = currentName;
+            if (renameModal) renameModal.style.display = 'block';
+            if (renameInput) renameInput.focus();
+        }
+
+        function confirmRenameHandler() {
+            const renameInput = document.getElementById('renameInput');
+            const newName = renameInput ? renameInput.value.trim() : '';
+            if (newName && currentRenamingId) {
+                const calcData = calculatorNotes.get(currentRenamingId);
+                if (calcData) {
+                    calcData.name = newName;
+                    calculatorNotes.set(currentRenamingId, calcData);
+                    saveCalculatorData();
+                    updateRelationshipsList();
+                    showStatus('Relationship renamed', 'success');
+                }
+            }
+            cancelRenameHandler();
+        }
+
+        function cancelRenameHandler() {
+            const renameModal = document.getElementById('renameModal');
+            const renameInput = document.getElementById('renameInput');
+            if (renameModal) renameModal.style.display = 'none';
+            currentRenamingId = null;
+            if (renameInput) renameInput.value = '';
+        }
+
+        window.deleteRelationship = async function (resultId) {
+            try {
+                const calcData = calculatorNotes.get(resultId);
+                if (!calcData) {
+                    showStatus('Relationship not found', 'error');
+                    return;
+                }
+                const confirmMessage = `Delete relationship "${calcData.name}" and ALL related notes?\n\nThis will delete:\n- The result note (${calcData.operation})\n- All ${calcData.sourceIds.length} source notes\n\nThis action cannot be undone.`;
+                if (!confirm(confirmMessage)) return;
+
+                let deletedCount = 0;
+                let errors = [];
+                const itemsToDelete = [];
+                for (const sourceId of calcData.sourceIds) {
+                    try {
+                        const [sourceNote] = await miro.board.get({ id: sourceId });
+                        if (sourceNote) itemsToDelete.push(sourceNote);
+                    } catch (error) {
+                        errors.push(`Source ${sourceId.slice(-8)}: ${error.message}`);
+                    }
+                }
+                try {
+                    const [resultNote] = await miro.board.get({ id: resultId });
+                    if (resultNote) itemsToDelete.push(resultNote);
+                } catch (error) {
+                    errors.push(`Result ${resultId.slice(-8)}: ${error.message}`);
+                }
+                for (const item of itemsToDelete) {
+                    try { await miro.board.remove(item); deletedCount++; }
+                    catch (error) { errors.push(`Item ${item.id.slice(-8)}: ${error.message}`); }
+                }
+                calculatorNotes.delete(resultId);
+                updateNotesInRelationships();
+                await saveCalculatorData();
+                updateRelationshipsCount();
+                await updateRelationshipsList();
+                if (errors.length > 0) {
+                    showStatus(`Removed ${deletedCount} notes, ${errors.length} errors`, deletedCount > 0 ? 'success' : 'error');
+                } else {
+                    showStatus(`Successfully removed ${deletedCount} notes`, 'success');
+                }
+            } catch (error) {
+                console.error('Error deleting relationship:', error);
+                showStatus('Error deleting relationship: ' + error.message, 'error');
+            }
+        }
+
+        async function recalculateResult(resultId, calcData) {
+            try {
+                const sourceValues = [];
+                for (const sourceId of calcData.sourceIds) {
+                    try {
+                        const [sourceItem] = await miro.board.get({ id: sourceId });
+                        if (sourceItem && sourceItem.type === 'sticky_note' && sourceItem.content) {
+                            const cleanContent = sourceItem.content.replace(/<[^>]*>/g, '').trim();
+                            const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
+                            if (match) sourceValues.push(parseFloat(match[1]));
+                            else {
+                                const num = parseFloat(cleanContent);
+                                if (!isNaN(num)) sourceValues.push(num);
+                            }
+                        }
+                    } catch (error) { /* ignore */ }
+                }
+                if (sourceValues.length < 2) {
+                    try {
+                        const [resultNote] = await miro.board.get({ id: resultId });
+                        if (resultNote) await miro.board.remove(resultNote);
+                    } catch (error) { /* ignore */ }
+                    calculatorNotes.delete(resultId);
+                    updateNotesInRelationships();
+                    await saveCalculatorData();
+                    updateRelationshipsCount();
+                    return;
+                }
+                const newResult = calcData.operation === 'sum'
+                    ? sourceValues.reduce((a, b) => a + b, 0)
+                    : sourceValues.reduce((a, b) => a * b, 1);
+                try {
+                    const [resultItem] = await miro.board.get({ id: resultId });
+                    if (resultItem) {
+                        resultItem.content = newResult.toString();
+                        await resultItem.sync();
+                    }
+                } catch (error) {
+                    calculatorNotes.delete(resultId);
+                    updateNotesInRelationships();
+                    await saveCalculatorData();
+                }
+            } catch (error) {
+                console.error('Error in recalculateResult:', error);
+            }
+        }
+
+        async function recheckAllCalculatorNotes() {
+            try {
+                await preciseCleanup();
+                for (const [resultId, calcData] of calculatorNotes.entries()) {
+                    await recalculateResult(resultId, calcData);
+                }
+            } catch (error) {
+                console.error('Error in recheckAllCalculatorNotes:', error);
+            }
+        }
+
+        function throttledUpdateUI() {
+            const now = Date.now();
+            if (now - lastUIUpdate > 1000) {
+                lastUIUpdate = now;
+                updateUI();
+            }
+        }
+
+        function throttledRecheckAllCalculatorNotes() {
+            const now = Date.now();
+            if (now - lastCalculatorCheck > 10000) {
+                lastCalculatorCheck = now;
+                recheckAllCalculatorNotes();
+            }
+        }
+
+        async function updateUI() {
+            try {
+                if (updateUI.isRunning) return;
+                updateUI.isRunning = true;
+                const selection = await miro.board.selection.get();
+                if (!selection || !Array.isArray(selection)) {
+                    updateUI.isRunning = false;
+                    return;
+                }
+                const numbers = [];
+                let hasCalculatorResult = false;
+                for (let i = 0; i < selection.length; i++) {
+                    const item = selection[i];
+                    if (item.type === 'sticky_note') {
+                        if (calculatorNotes.has(item.id)) {
+                            hasCalculatorResult = true;
+                            if (item.content) {
+                                let cleanContent = item.content.trim().replace(/<[^>]*>/g, '');
+                                const num = parseFloat(cleanContent);
+                                if (!isNaN(num)) numbers.push(num);
+                            }
+                        } else if (item.content) {
+                            let cleanContent = item.content.trim().replace(/<[^>]*>/g, '');
+                            const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
+                            if (match) numbers.push(parseFloat(match[1]));
+                            else {
+                                const num = parseFloat(cleanContent);
+                                if (!isNaN(num)) numbers.push(num);
+                            }
+                        }
+                    }
+                }
+                const hasEnough = numbers.length >= 2;
+                const canExpand = numbers.length >= 1 && hasCalculatorResult;
+                const sumBtn = document.getElementById('sumBtn');
+                const productBtn = document.getElementById('productBtn');
+                const expandBtn = document.getElementById('expandBtn');
+                const selectionDiv = document.getElementById('selection');
+                if (sumBtn) sumBtn.disabled = !hasEnough;
+                if (productBtn) productBtn.disabled = !hasEnough;
+                if (expandBtn) expandBtn.disabled = !canExpand;
+                if (selectionDiv) {
+                    let text;
+                    if (canExpand) text = `Can expand relationship: ${numbers.length} new number(s) selected`;
+                    else if (hasEnough) text = `${numbers.length} numbers selected: [${numbers.join(', ')}]`;
+                    else text = `Selected: ${selection.length} items (need 2+ numbers for calc, or 1+ numbers + result for expand)`;
+                    selectionDiv.textContent = text;
+                }
+            } catch (error) {
+                console.error('Error in updateUI:', error);
+            } finally {
+                updateUI.isRunning = false;
+            }
+        }
     </script>
 </body>
 </html>
