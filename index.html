@@ -566,12 +566,21 @@
                 const digValueInput = document.getElementById('digValue');
                 const crateValueInput = document.getElementById('crateValue');
 
+                // Debounce input handlers to reduce saves
+                let saveTimeout;
+                const debouncedSave = () => {
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        saveGlobalVariables();
+                    }, 1000); // Wait 1 second after typing stops
+                };
+
                 if (barrelSmallInput) {
                     barrelSmallInput.addEventListener('input', () => {
                         const value = parseInt(barrelSmallInput.value);
                         globalVariables.barrelSmall = value > 0 ? value : 5;
                         if (value <= 0) barrelSmallInput.value = 5;
-                        saveGlobalVariables();
+                        debouncedSave();
                         updateResourceValues('barrel-small');
                     });
                 }
@@ -580,7 +589,7 @@
                         const value = parseInt(barrelMediumInput.value);
                         globalVariables.barrelMedium = value > 0 ? value : 10;
                         if (value <= 0) barrelMediumInput.value = 10;
-                        saveGlobalVariables();
+                        debouncedSave();
                         updateResourceValues('barrel-medium');
                     });
                 }
@@ -589,7 +598,7 @@
                         const value = parseInt(barrelBigInput.value);
                         globalVariables.barrelBig = value > 0 ? value : 20;
                         if (value <= 0) barrelBigInput.value = 20;
-                        saveGlobalVariables();
+                        debouncedSave();
                         updateResourceValues('barrel-big');
                     });
                 }
@@ -598,7 +607,7 @@
                         const value = parseInt(digValueInput.value);
                         globalVariables.digValue = value > 0 ? value : 3;
                         if (value <= 0) digValueInput.value = 3;
-                        saveGlobalVariables();
+                        debouncedSave();
                         updateResourceValues('dig');
                     });
                 }
@@ -607,7 +616,7 @@
                         const value = parseInt(crateValueInput.value);
                         globalVariables.crateValue = value > 0 ? value : 15;
                         if (value <= 0) crateValueInput.value = 15;
-                        saveGlobalVariables();
+                        debouncedSave();
                         updateResourceValues('crate');
                     });
                 }
@@ -643,26 +652,25 @@
                 if (cancelRename) cancelRename.addEventListener('click', cancelRenameHandler);
 
                 try {
+                    let selectionUpdateTimeout;
                     miro.board.ui.on('selection:update', () => {
-                        // Clear previous timeout
-                        if (cleanup.selectionTimeout) clearTimeout(cleanup.selectionTimeout);
-                        // Debounce the selection updates
-                        cleanup.selectionTimeout = setTimeout(() => {
+                        clearTimeout(selectionUpdateTimeout);
+                        selectionUpdateTimeout = setTimeout(() => {
                             throttledUpdateUI();
-                        }, 500);
+                        }, 1000); // Increased debounce time
                     });
                 } catch (error) {
                     console.log('selection:update listener failed:', error);
                 }
 
-                setTimeout(throttledUpdateUI, 1000);
+                setTimeout(throttledUpdateUI, 2000);
 
-                // Store interval reference for cleanup
-                cleanup.recheckInterval = setInterval(() => {
+                // Reduce frequency of rechecks
+                setInterval(() => {
                     if (calculatorNotes.size > 0) {
                         throttledRecheckAllCalculatorNotes();
                     }
-                }, 15000); // Increased from 10000ms to 15000ms
+                }, 30000); // Check every 30 seconds instead of 10
 
             } catch (error) {
                 console.error('Error setting up UI:', error);
@@ -1011,18 +1019,6 @@
                 const startX = centerX - ((quantity - 1) * spacing / 2);
                 const resourceNotes = [];
 
-                // Clean up old resources before adding new ones
-                if (!spawnedResources.has(resourceType)) {
-                    spawnedResources.set(resourceType, []);
-                }
-
-                // Limit stored resource IDs to last 20 per type
-                let existingIds = spawnedResources.get(resourceType) || [];
-                if (existingIds.length > 20) {
-                    existingIds = existingIds.slice(-20);
-                    spawnedResources.set(resourceType, existingIds);
-                }
-
                 for (let i = 0; i < quantity; i++) {
                     const resource = await miro.board.createStickyNote({
                         content: content,
@@ -1031,15 +1027,8 @@
                         style: { fillColor: fillColor }
                     });
                     resourceNotes.push(resource);
-
-                    // Only store the last 30 resource IDs per type
-                    existingIds.push(resource.id);
-                    if (existingIds.length > 30) {
-                        existingIds.shift(); // Remove oldest
-                    }
+                    // Don't store resource IDs - not needed
                 }
-
-                spawnedResources.set(resourceType, existingIds);
 
                 const totalValue = parseInt(value) * quantity;
                 const lastResource = resourceNotes[resourceNotes.length - 1];
@@ -1061,11 +1050,8 @@
                     created: Date.now()
                 });
 
-                // Update the set of notes in relationships
                 updateNotesInRelationships();
-
                 await saveCalculatorData();
-                await saveSpawnedResourcesData();
                 updateRelationshipsCount();
 
                 const relationshipsList = document.getElementById('relationshipsList');
@@ -1080,47 +1066,7 @@
 
             } catch (error) {
                 console.error('Error creating resource pool:', error);
-                if (error.message && error.message.includes('storage limit')) {
-                    // Clear spawned resources and try again
-                    spawnedResources = new Map();
-                    await miro.board.setAppData('spawnedResources', {});
-                    showStatus('Storage was full, cleared old resources. Please try again.', 'error');
-                } else {
-                    showStatus('Error creating resource pool: ' + error.message, 'error');
-                }
-            }
-        }
-
-        // Also update saveSpawnedResourcesData to be more aggressive about limiting data
-        async function saveSpawnedResourcesData() {
-            try {
-                // Limit each resource type to 30 items maximum
-                for (const [type, ids] of spawnedResources.entries()) {
-                    if (ids.length > 30) {
-                        spawnedResources.set(type, ids.slice(-30));
-                    }
-                }
-
-                const data = Object.fromEntries(spawnedResources);
-                await miro.board.setAppData('spawnedResources', data);
-            } catch (error) {
-                if (error.message && error.message.includes('storage limit')) {
-                    // If still too large, keep only 10 most recent of each type
-                    for (const [type, ids] of spawnedResources.entries()) {
-                        spawnedResources.set(type, ids.slice(-10));
-                    }
-                    const reducedData = Object.fromEntries(spawnedResources);
-                    try {
-                        await miro.board.setAppData('spawnedResources', reducedData);
-                    } catch (retryError) {
-                        // If still failing, clear everything
-                        spawnedResources = new Map();
-                        await miro.board.setAppData('spawnedResources', {});
-                        console.error('Had to clear all spawned resources due to storage limits');
-                    }
-                } else {
-                    console.error('Error saving spawned resources data:', error);
-                }
+                showStatus('Error creating resource pool: ' + error.message, 'error');
             }
         }
 
@@ -1253,7 +1199,7 @@
 
         function throttledUpdateUI() {
             const now = Date.now();
-            if (now - lastUIUpdate > 3000) {  // Increased from 2000ms to 3000ms
+            if (now - lastUIUpdate > 3000) {  // 3 second minimum between updates
                 lastUIUpdate = now;
                 updateUI();
             }
@@ -1261,7 +1207,7 @@
 
         function throttledRecheckAllCalculatorNotes() {
             const now = Date.now();
-            if (now - lastCalculatorCheck > 15000) {  // Increased from 10000ms to 15000ms
+            if (now - lastCalculatorCheck > 20000) {  // 20 seconds between rechecks
                 lastCalculatorCheck = now;
                 recheckAllCalculatorNotes();
             }
@@ -1625,26 +1571,20 @@
 
         async function saveCalculatorData() {
             try {
-                // Limit to 100 most recent relationships
-                if (calculatorNotes.size > 100) {
+                // Only limit if we have too many relationships
+                if (calculatorNotes.size > 50) {
+                    // Keep the 50 most recent relationships
                     const sortedEntries = Array.from(calculatorNotes.entries())
                         .sort((a, b) => (b[1].created || 0) - (a[1].created || 0))
-                        .slice(0, 100);
+                        .slice(0, 50);
                     calculatorNotes = new Map(sortedEntries);
                 }
 
                 const data = Object.fromEntries(calculatorNotes);
                 await miro.board.setAppData('calculatorNotes', data);
             } catch (error) {
-                if (error.message && error.message.includes('storage limit')) {
-                    // If still too large, reduce further
-                    const reducedEntries = Array.from(calculatorNotes.entries()).slice(0, 50);
-                    calculatorNotes = new Map(reducedEntries);
-                    const reducedData = Object.fromEntries(calculatorNotes);
-                    await miro.board.setAppData('calculatorNotes', reducedData);
-                } else {
-                    console.error('Error saving calculator data:', error);
-                }
+                console.error('Error saving calculator data:', error);
+                // Don't clear data on error - just log it
             }
         }
 
