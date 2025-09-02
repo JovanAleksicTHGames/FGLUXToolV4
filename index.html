@@ -442,7 +442,8 @@
 
 
     <script>
-        //inser JavaScriot Here
+        //insert JavaScriot Here
+
         let isInitialized = false;
         let calculatorNotes = new Map();
         let spawnedResources = new Map();
@@ -472,7 +473,7 @@
 
         async function saveGlobalVariables() {
             try {
-                await miro.board.setAppData('globalVariables', globalVariables);
+                await miro.board.set('globalVariables', globalVariables);
             } catch (error) {
                 console.error('Error saving global variables:', error);
             }
@@ -480,7 +481,7 @@
 
         async function loadGlobalVariables() {
             try {
-                const data = await miro.board.getAppData('globalVariables');
+                const data = await miro.board.get('globalVariables');
                 if (data) {
                     globalVariables = data;
                     const inputs = {
@@ -509,11 +510,11 @@
                     }
                 }
                 const data = Object.fromEntries(spawnedResources);
-                await miro.board.setAppData('spawnedResources', data);
+                await miro.board.set('spawnedResources', data);
             } catch (error) {
                 if (error.message && error.message.includes('storage limit')) {
                     spawnedResources = new Map();
-                    await miro.board.setAppData('spawnedResources', {});
+                    await miro.board.set('spawnedResources', {});
                 } else {
                     console.error('Error saving spawned resources data:', error);
                 }
@@ -522,7 +523,7 @@
 
         async function loadSpawnedResourcesData() {
             try {
-                const data = await miro.board.getAppData('spawnedResources');
+                const data = await miro.board.get('spawnedResources');
                 if (data) {
                     spawnedResources = new Map(Object.entries(data));
                     await cleanupSpawnedResources();
@@ -540,7 +541,7 @@
                 const validIds = [];
                 for (const resourceId of resourceIds) {
                     try {
-                        const resource = await miro.board.getById(resourceId);
+                        const resource = await miro.board.get({ resourceId });
                         if (resource && resource.type === 'sticky_note') {
                             validIds.push(resourceId);
                         }
@@ -814,9 +815,7 @@
                 if (confirmRename) confirmRename.addEventListener('click', confirmRenameHandler);
                 if (cancelRename) cancelRename.addEventListener('click', cancelRenameHandler);
 
-                miro.board.ui.on('selection:update', () => {
-                    throttledUpdateUI();
-                });
+                miro.board.selection.on('update', throttledUpdateUI);
 
                 setTimeout(throttledUpdateUI, 1000);
 
@@ -923,7 +922,7 @@
             try {
                 await preciseCleanup();
                 const data = Object.fromEntries(calculatorNotes);
-                await miro.board.setAppData('calculatorNotes', data);
+                await miro.board.set('calculatorNotes', data);
             } catch (error) {
                 console.error('Error saving calculator data:', error);
             }
@@ -931,7 +930,7 @@
 
         async function loadCalculatorData() {
             try {
-                const data = await miro.board.getAppData('calculatorNotes');
+                const data = await miro.board.get('calculatorNotes');
                 if (data) {
                     calculatorNotes = new Map(Object.entries(data));
                     await preciseCleanup();
@@ -945,7 +944,7 @@
         }
 
         async function preciseCleanup() {
-            const allItems = await miro.board.getAll();
+            const allItems = await miro.board.get({ type: ['sticky_note'] });
             const validIds = new Set(allItems.filter(i => i.type === 'sticky_note').map(i => i.id));
             const toDelete = [];
             for (const [resultId, calcData] of calculatorNotes.entries()) {
@@ -984,13 +983,13 @@
             for (const [resultId, calcData] of calculatorNotes.entries()) {
                 let resultContent = '';
                 try {
-                    const resultNote = await miro.board.getById(resultId);
+                    const resultNote = await miro.board.get({ resultId });
                     resultContent = resultNote ? resultNote.content.replace(/<[^>]*>/g, '').trim() : '';
                 } catch { }
                 let sourceContents = [];
                 for (const sourceId of calcData.sourceIds) {
                     try {
-                        const sourceNote = await miro.board.getById(sourceId);
+                        const sourceNote = await miro.board.get({ sourceId });
                         sourceContents.push(sourceNote ? sourceNote.content.replace(/<[^>]*>/g, '').trim() : '[deleted]');
                     } catch {
                         sourceContents.push('[deleted]');
@@ -1032,7 +1031,7 @@
 
         async function calculate(operation) {
             try {
-                const selection = await miro.board.getSelection();
+                const selection = await miro.board.selection.get();
                 const validItems = selection.filter(item => item.type === 'sticky_note' && item.content);
                 const numbers = validItems
                     .map(item => {
@@ -1133,7 +1132,7 @@
 
         window.goToResultNote = async function (resultId) {
             try {
-                const resultNote = await miro.board.getById(resultId);
+                const resultNote = await miro.board.get({ resultId });
                 if (resultNote) {
                     await miro.board.viewport.zoomTo(resultNote);
                     await miro.board.select({ id: resultId });
@@ -1158,7 +1157,7 @@
                 let validParentCount = 0;
                 for (const sourceId of calcData.sourceIds) {
                     try {
-                        const sourceNote = await miro.board.getById(sourceId);
+                        const sourceNote = await miro.board.get({ sourceId });
                         if (sourceNote) {
                             parentNotes.push(sourceNote);
                             validParentCount++;
@@ -1229,7 +1228,7 @@
                 const itemsToDelete = [];
                 for (const sourceId of calcData.sourceIds) {
                     try {
-                        const sourceNote = await miro.board.getById(sourceId);
+                        const sourceNote = await miro.board.get({ sourceId });
                         if (sourceNote) {
                             itemsToDelete.push(sourceNote);
                         }
@@ -1238,7 +1237,7 @@
                     }
                 }
                 try {
-                    const resultNote = await miro.board.getById(resultId);
+                    const resultNote = await miro.board.get({ resultId });
                     if (resultNote) {
                         itemsToDelete.push(resultNote);
                     }
@@ -1274,7 +1273,7 @@
                 const sourceValues = [];
                 for (const sourceId of calcData.sourceIds) {
                     try {
-                        const sourceItem = await miro.board.getById(sourceId);
+                        const sourceItem = await miro.board.get({ sourceId });
                         if (sourceItem && sourceItem.type === 'sticky_note' && sourceItem.content) {
                             const cleanContent = sourceItem.content.replace(/<[^>]*>/g, '').trim();
                             const match = cleanContent.match(/\((\d+)\)/) || cleanContent.match(/^(\d+)$/);
@@ -1291,7 +1290,7 @@
                 }
                 if (sourceValues.length < 2) {
                     try {
-                        const resultNote = await miro.board.getById(resultId);
+                        const resultNote = await miro.board.get({ resultId });
                         if (resultNote) {
                             await miro.board.remove(resultNote);
                         }
@@ -1314,7 +1313,7 @@
                     newResult = sourceValues.reduce((a, b) => a * b, 1);
                 }
                 try {
-                    const resultItem = await miro.board.getById(resultId);
+                    const resultItem = await miro.board.get({ resultId });
                     if (resultItem) {
                         resultItem.content = newResult.toString();
                         await resultItem.sync();
@@ -1421,6 +1420,7 @@
                 updateUI.isRunning = false;
             }
         }
+        
     </script>
 </body>
 </html>
