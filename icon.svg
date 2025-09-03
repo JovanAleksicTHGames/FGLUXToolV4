@@ -1,34 +1,26 @@
 <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <!-- Calculator body -->
-  <rect x="8" y="8" width="48" height="48" rx="4" fill="#4a5568" stroke="#2d3748" stroke-width="2"/>
+  <rect x="8" y="8" width="48" height="48" rx="4" fill="#000000"/>
   
   <!-- Display screen -->
-  <rect x="12" y="12" width="40" height="12" rx="2" fill="#1a202c"/>
-  
-  <!-- Display numbers -->
-  <text x="48" y="22" font-family="monospace" font-size="10" fill="#00ff88" text-anchor="end">123</text>
+  <rect x="12" y="12" width="40" height="12" rx="2" fill="none" stroke="#000000" stroke-width="1"/>
   
   <!-- Calculator buttons -->
   <!-- Row 1 -->
-  <circle cx="18" cy="32" r="3" fill="#e2e8f0"/>
-  <circle cx="28" cy="32" r="3" fill="#e2e8f0"/>
-  <circle cx="38" cy="32" r="3" fill="#e2e8f0"/>
-  <circle cx="48" cy="32" r="3" fill="#ffc107"/>
+  <circle cx="18" cy="32" r="2" fill="#000000"/>
+  <circle cx="28" cy="32" r="2" fill="#000000"/>
+  <circle cx="38" cy="32" r="2" fill="#000000"/>
+  <circle cx="48" cy="32" r="2" fill="#000000"/>
   
   <!-- Row 2 -->
-  <circle cx="18" cy="42" r="3" fill="#e2e8f0"/>
-  <circle cx="28" cy="42" r="3" fill="#e2e8f0"/>
-  <circle cx="38" cy="42" r="3" fill="#e2e8f0"/>
-  <circle cx="48" cy="42" r="3" fill="#28a745"/>
+  <circle cx="18" cy="42" r="2" fill="#000000"/>
+  <circle cx="28" cy="42" r="2" fill="#000000"/>
+  <circle cx="38" cy="42" r="2" fill="#000000"/>
+  <circle cx="48" cy="42" r="2" fill="#000000"/>
   
   <!-- Row 3 -->
-  <circle cx="18" cy="52" r="3" fill="#e2e8f0"/>
-  <circle cx="28" cy="52" r="3" fill="#e2e8f0"/>
-  <circle cx="38" cy="52" r="3" fill="#e2e8f0"/>
-  <circle cx="48" cy="52" r="3" fill="#dc3545"/>
-  
-  <!-- Button symbols -->
-  <text x="48" y="35" font-family="sans-serif" font-size="8" fill="#000" text-anchor="middle">+</text>
-  <text x="48" y="45" font-family="sans-serif" font-size="8" fill="#fff" text-anchor="middle">×</text>
-  <text x="48" y="55" font-family="sans-serif" font-size="8" fill="#fff" text-anchor="middle">=</text>
+  <circle cx="18" cy="52" r="2" fill="#000000"/>
+  <circle cx="28" cy="52" r="2" fill="#000000"/>
+  <circle cx="38" cy="52" r="2" fill="#000000"/>
+  <circle cx="48" cy="52" r="2" fill="#000000"/>
 </svg>
