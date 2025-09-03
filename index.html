@@ -780,6 +780,20 @@
                 setInterval(() => { 
                     if (calculatorNotes.size > 0) throttledRecheckAllCalculatorNotes(); 
                 }, 10000);
+                
+                // Periodic cleanup to prevent storage bloat
+                setInterval(() => {
+                    if (spawnedResources.size > 0) {
+                        let totalItems = 0;
+                        for (const [, ids] of spawnedResources.entries()) {
+                            totalItems += ids.length;
+                        }
+                        if (totalItems > 100) { // If we have too many items total
+                            console.log('Performing periodic cleanup of spawned resources');
+                            cleanupSpawnedResources();
+                        }
+                    }
+                }, 30000); // Every 30 seconds
             } catch (error) {
                 console.error('Error setting up UI:', error);
             }
