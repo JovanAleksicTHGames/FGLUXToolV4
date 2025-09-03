@@ -444,7 +444,7 @@
         // App metadata keys for persistence
         const RELATIONSHIPS_KEY = 'calculatorRelationships';
         const GLOBAL_VARS_KEY = 'globalVariables';
-        const APP_VERSION = '0.1.06';
+        const APP_VERSION = '1.0.0';
 
         // Initialize the app when Miro SDK is ready
         async function initializeApp() {
@@ -1409,23 +1409,32 @@
         });
 
         // Initialize app when DOM is ready and Miro SDK is available
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                if (window.miro) {
-                    initializeApp();
-                } else {
-                    console.error('Miro SDK not available');
-                    showStatus('Miro SDK not loaded', 'error');
+        async function startApp() {
+            try {
+                // Wait for DOM to be ready
+                await waitForDOM();
+
+                // Check if Miro SDK is available
+                if (!window.miro) {
+                    throw new Error('Miro SDK not available');
                 }
-            });
-        } else {
-            if (window.miro) {
-                initializeApp();
-            } else {
-                console.error('Miro SDK not available');
-                showStatus('Miro SDK not loaded', 'error');
+
+                // Initialize the app
+                await initializeApp();
+
+            } catch (error) {
+                console.error('Failed to start app:', error);
+                const statusDiv = document.getElementById('status');
+                if (statusDiv) {
+                    statusDiv.textContent = 'Failed to start app: ' + error.message;
+                    statusDiv.className = 'error';
+                    statusDiv.style.display = 'block';
+                }
             }
         }
+
+        // Start the app
+        startApp();
     </script>
 </body>
 </html>
