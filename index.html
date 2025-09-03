@@ -313,11 +313,11 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.4);
         }
 
         .modal-content {
-            background-color: #fefefe;
+            background: #fefefe;
             margin: 15% auto;
             padding: 20px;
             border: 1px solid #888;
@@ -621,8 +621,7 @@
 
                 const sourceIds = resourceNotes.map(n => n.id);
                 calculatorNotes.set(sumNote.id, {
-                    operation: 'sum',
-                    sourceIds,
+                    operation: 'sum', sourceIds,
                     name: `POOL_${type.toUpperCase()}_${Date.now().toString().slice(-6)}`,
                     created: Date.now()
                 });
@@ -639,8 +638,8 @@
                 showStatus(`Created resource pool: ${quantity}x ${content} = ${totalValue}`, 'success');
             } catch (error) {
                 console.error('Error creating resource pool:', error);
-                showStatus('Error creating resource pool: ' + error.message, 'error');
-            }
+                showStatus('Error creating resource pool: ' + error.message', 'error');
+                }
         }
 
         function setupUI() {
@@ -791,8 +790,6 @@
             }
         }
 
-        // --- Calculator, Relationships, Cleanup, and Advanced Logic ---
-
         function updateRelationshipsCount() {
             const countElement = document.getElementById('relationshipCount');
             if (countElement) countElement.textContent = calculatorNotes.size;
@@ -807,7 +804,6 @@
 
         async function saveCalculatorData() {
             try {
-                // Important: NO call to saveCalculatorData() from preciseCleanup()
                 await preciseCleanup(); // sanitize in-memory map only
                 const data = Object.fromEntries(calculatorNotes);
                 await miro.board.setAppData('calculatorNotes', data);
@@ -821,7 +817,7 @@
                 const data = await miro.board.getAppData('calculatorNotes');
                 if (data && typeof data === 'object') {
                     calculatorNotes = new Map(Object.entries(data));
-                    await preciseCleanup(); // sanitize in-memory only; DO NOT save here
+                    await preciseCleanup(); // in-memory only
                 } else {
                     calculatorNotes = new Map();
                 }
@@ -832,7 +828,6 @@
         }
 
         async function preciseCleanup() {
-            // Validate that result and source IDs still exist and are sticky notes.
             const toDelete = [];
             for (const [resultId, calcData] of calculatorNotes.entries()) {
                 let resultExists = false;
@@ -862,8 +857,37 @@
                     .slice(0, 50);
                 calculatorNotes = new Map(sorted);
             }
-            // NOTE: Do NOT call saveCalculatorData() here to avoid recursion.
         }
+
+        // --- SAFE RELATIONSHIP CLICK BINDING (fixes null .onclick) ---
+        function onRelationshipsClick(event) {
+            const target = event.target;
+            const resultId = target.getAttribute('data-result-id');
+            if (!resultId) return;
+
+            if (target.classList.contains('goto-btn') || target.classList.contains('goto-result')) {
+                goToResultNote(resultId);
+            } else if (target.classList.contains('select-parents-btn')) {
+                selectParents(resultId);
+            } else if (target.classList.contains('rename-btn') || target.classList.contains('rename-result')) {
+                startRename(resultId);
+            } else if (target.classList.contains('delete-btn')) {
+                deleteRelationship(resultId);
+            }
+        }
+        function attachRelationshipsHandler() {
+            const content = document.getElementById('relationshipsContent');
+            if (content && !content.__handlerBound) {
+                content.addEventListener('click', onRelationshipsClick);
+                content.__handlerBound = true; // prevent double-binding
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', attachRelationshipsHandler);
+        } else {
+            attachRelationshipsHandler();
+        }
+        // -------------------------------------------------------------
 
         async function updateRelationshipsList() {
             const content = document.getElementById('relationshipsContent');
@@ -874,6 +898,7 @@
                 content.innerHTML = 'No calculator relationships found';
                 return;
             }
+
             let html = '';
             for (const [resultId, calcData] of calculatorNotes.entries()) {
                 let resultContent = '';
@@ -892,40 +917,30 @@
                 }
 
                 html += `
-                    <div class="relationship-item ${calcData.operation}">
-                        <div class="relationship-header">
-                            <span class="goto-result" data-result-id="${resultId}" style="cursor:pointer;">
-                                ${calcData.operation.toUpperCase()}: ${resultContent}
-                            </span>
-                            <span class="relationship-name rename-result" data-result-id="${resultId}" style="cursor:pointer;">
-                                ${calcData.name || 'Unnamed'}
-                            </span>
-                        </div>
-                        <div class="relationship-sources">
-                            Sources: ${sourceContents.join(', ')}
-                        </div>
-                        <div class="relationship-actions">
-                            <button class="action-btn goto-btn" data-result-id="${resultId}">Go</button>
-                            <button class="action-btn select-parents-btn" data-result-id="${resultId}">Parents</button>
-                            <button class="action-btn rename-btn" data-result-id="${resultId}">Rename</button>
-                            <button class="action-btn delete-btn" data-result-id="${resultId}">Delete</button>
-                        </div>
-                    </div>`;
+                        <div class="relationship-item ${calcData.operation}">
+                            <div class="relationship-header">
+                                <span class="goto-result" data-result-id="${resultId}" style="cursor:pointer;">
+                                    ${calcData.operation.toUpperCase()}: ${resultContent}
+                                </span>
+                                <span class="relationship-name rename-result" data-result-id="${resultId}" style="cursor:pointer;">
+                                    ${calcData.name || 'Unnamed'}
+                                </span>
+                            </div>
+                            <div class="relationship-sources">
+                                Sources: ${sourceContents.join(', ')}
+                            </div>
+                            <div class="relationship-actions">
+                                <button class="action-btn goto-btn" data-result-id="${resultId}">Go</button>
+                                <button class="action-btn select-parents-btn" data-result-id="${resultId}">Parents</button>
+                                <button class="action-btn rename-btn" data-result-id="${resultId}">Rename</button>
+                                <button class="action-btn delete-btn" data-result-id="${resultId}">Delete</button>
+                            </div>
+                        </div>`;
             }
             content.innerHTML = html;
 
-            // Null-safe: only set onclick if content exists
-            if (content) {
-                content.onclick = function (event) {
-                    const target = event.target;
-                    const resultId = target.getAttribute('data-result-id');
-                    if (!resultId) return;
-                    if (target.classList.contains('goto-btn') || target.classList.contains('goto-result')) goToResultNote(resultId);
-                    else if (target.classList.contains('select-parents-btn')) selectParents(resultId);
-                    else if (target.classList.contains('rename-btn') || target.classList.contains('rename-result')) startRename(resultId);
-                    else if (target.classList.contains('delete-btn')) deleteRelationship(resultId);
-                };
-            }
+            // ensure handler is attached even if this runs early/late
+            attachRelationshipsHandler();
         }
 
         async function calculate(operation) {
