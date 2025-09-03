@@ -444,7 +444,7 @@
         // App metadata keys for persistence
         const RELATIONSHIPS_KEY = 'calculatorRelationships';
         const GLOBAL_VARS_KEY = 'globalVariables';
-        const APP_VERSION = '1.0.0';
+        const APP_VERSION = '0.1.06';
 
         // Initialize the app when Miro SDK is ready
         async function initializeApp() {
@@ -570,7 +570,7 @@
                 await miro.board.ui.on('selection:update', handleSelectionChange);
 
                 // Listen for item updates that might affect our relationships
-                await miro.board.ui.on('items:update', handleItemsUpdate);
+                await miro.board.ui.on('experimental:items:update', handleItemsUpdate);
 
                 // Listen for item deletion to clean up relationships
                 await miro.board.ui.on('items:delete', handleItemsDelete);
