@@ -2,9 +2,6 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <title>Miro Resource Calculator</title>
     <script src="https://miro.com/app/static/sdk/v2/miro.js?v=4"></script>
     <style>
@@ -431,7 +428,6 @@
     <script>
         //JavaScript goes here
         // Miro Resource Calculator App - SDK v2 Compatible
-        // Miro Resource Calculator App - SDK v2 Compatible
         // Deployment timestamp: 2025-01-10
         console.log('🚀 Miro Resource Calculator v2.0 - Loading...', new Date().toISOString());
 
@@ -660,6 +656,15 @@
         async function setupMiroEventListeners() {
             try {
                 console.log('🎯 Setting up Miro event listeners...');
+
+                // IMPORTANT: Listen for icon click to open panel
+                await miro.board.ui.on('icon:click', async () => {
+                    console.log('🖱️ App icon clicked - opening panel...');
+                    await miro.board.ui.openPanel({
+                        url: window.location.href
+                    });
+                });
+                console.log('✅ Registered icon:click listener');
 
                 // Listen for selection changes
                 await miro.board.ui.on('selection:update', handleSelectionChange);
@@ -1201,20 +1206,20 @@
                 .sort((a, b) => b.createdAt - a.createdAt);
 
             content.innerHTML = relationships.map(rel => `
-            <div class="relationship-item ${rel.type}">
-                <div class="relationship-header" onclick="gotoRelationship('${rel.id}')">
-                    <span>${rel.type === 'sum' ? 'Sum' : 'Product'}: ${rel.resultValue}</span>
-                    <span class="relationship-name" onclick="event.stopPropagation(); renameRelationship('${rel.id}')">${rel.name}</span>
-                </div>
-                <div class="relationship-sources">Sources: ${rel.values.join(' + ')}</div>
-                <div class="relationship-actions">
-                    <button class="action-btn goto-btn" onclick="gotoRelationship('${rel.id}')">Go To</button>
-                    <button class="action-btn select-parents-btn" onclick="selectParents('${rel.id}')">Select Parents</button>
-                    <button class="action-btn rename-btn" onclick="renameRelationship('${rel.id}')">Rename</button>
-                    <button class="action-btn delete-btn" onclick="deleteRelationship('${rel.id}')">Delete</button>
-                </div>
+        <div class="relationship-item ${rel.type}">
+            <div class="relationship-header" onclick="gotoRelationship('${rel.id}')">
+                <span>${rel.type === 'sum' ? 'Sum' : 'Product'}: ${rel.resultValue}</span>
+                <span class="relationship-name" onclick="event.stopPropagation(); renameRelationship('${rel.id}')">${rel.name}</span>
             </div>
-        `).join('');
+            <div class="relationship-sources">Sources: ${rel.values.join(' + ')}</div>
+            <div class="relationship-actions">
+                <button class="action-btn goto-btn" onclick="gotoRelationship('${rel.id}')">Go To</button>
+                <button class="action-btn select-parents-btn" onclick="selectParents('${rel.id}')">Select Parents</button>
+                <button class="action-btn rename-btn" onclick="renameRelationship('${rel.id}')">Rename</button>
+                <button class="action-btn delete-btn" onclick="deleteRelationship('${rel.id}')">Delete</button>
+            </div>
+        </div>
+    `).join('');
 
             console.log('🔄 Updated relationships UI:', count, 'relationships');
         }
@@ -1621,11 +1626,9 @@
                 });
             }
         }
-
         // Start the app immediately - cache busting ensures fresh execution
         startApp();
     </script>
 </body>
 </html>
-
 
