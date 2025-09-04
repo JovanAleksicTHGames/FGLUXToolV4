@@ -1516,7 +1516,18 @@
                 }
                 showStatus('All notes refreshed with current global values', 'success');
             },
-            cleanup: cleanupAllResources,
+
+            /*window.debugMiroCalculator = {
+                getState: () => appState,
+                validateData: validateAndCleanData,
+                clearAllData: async () => {  ...  },
+                refreshAllNotes: async () => {  ...  },
+                memoryReport: () => {  ...  },
+                deploymentId: DEPLOYMENT_ID,
+                version: APP_VERSION
+            
+            };*/
+
             memoryReport: () => {
                 console.log('📊 Memory Usage Report:');
                 console.log('- Event Listeners:', appState.eventListeners.size);
