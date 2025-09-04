@@ -428,8 +428,8 @@
     <script>
         //JavaScript goes here
         // Miro Resource Calculator App - SDK v2 Compatible
-        // Deployment timestamp: 2025-09-04 15:06 PM
-        console.log('🚀 Miro Resource Calculator v2.0 - Loading...', new Date().toISOString());
+        // Clean version without reference errors
+        console.log('Miro Resource Calculator v2.0 - Loading...', new Date().toISOString());
 
         // Global state management
         let appState = {
@@ -442,17 +442,18 @@
                 crate: 15
             },
             isRelationshipsVisible: false,
-            initialized: false
+            initialized: false,
+            eventListeners: new Map(),
+            intervals: new Set(),
+            timeouts: new Set()
         };
 
         // App metadata keys for persistence
         const RELATIONSHIPS_KEY = 'calculatorRelationships';
         const GLOBAL_VARS_KEY = 'globalVariables';
         const APP_VERSION = '2.0.0';
-
-        // Cache busting - ensures fresh deployment
         const DEPLOYMENT_ID = Date.now();
-        console.log('📦 Deployment ID:', DEPLOYMENT_ID);
+        console.log('Deployment ID:', DEPLOYMENT_ID);
 
         // Utility: Wait for DOM to be ready
         function waitForDOM() {
@@ -465,15 +466,15 @@
             });
         }
 
-        // Utility: Safely get DOM element with detailed logging
+        // Utility: Safely get DOM element
         function safeGetElement(id, required = false) {
             const element = document.getElementById(id);
             if (!element) {
                 const message = `Element '${id}' not found`;
                 if (required) {
-                    console.error('❌', message);
+                    console.error(message);
                 } else {
-                    console.warn('⚠️', message);
+                    console.warn(message);
                 }
             }
             return element;
@@ -482,13 +483,13 @@
         // Load persisted data from Miro's storage
         async function loadPersistedData() {
             try {
-                console.log('📂 Loading persisted data...');
+                console.log('Loading persisted data...');
 
                 // Load global variables from Miro app data
                 const savedGlobals = await miro.board.getAppData(GLOBAL_VARS_KEY);
                 if (savedGlobals) {
                     appState.globalVars = { ...appState.globalVars, ...savedGlobals };
-                    console.log('✅ Loaded global variables:', appState.globalVars);
+                    console.log('Loaded global variables:', appState.globalVars);
                 }
 
                 // Load relationships using storage collection
@@ -502,34 +503,70 @@
                     }
                 }
 
-                console.log(`✅ Loaded ${appState.relationships.size} relationships`);
+                console.log(`Loaded ${appState.relationships.size} relationships`);
 
             } catch (error) {
-                console.error('❌ Error loading persisted data:', error);
+                console.error('Error loading persisted data:', error);
             }
         }
 
         // Save data to Miro's storage
         async function saveData() {
             try {
-                // Save global variables to app data
                 await miro.board.setAppData(GLOBAL_VARS_KEY, appState.globalVars);
 
-                // Save relationships to storage collection
                 const relationshipsCollection = miro.board.storage.collection('relationships');
                 const relationshipKeys = Array.from(appState.relationships.keys());
 
-                // Store the list of keys
                 await relationshipsCollection.set('keys', relationshipKeys);
 
-                // Store each relationship
                 for (const [key, relationship] of appState.relationships) {
                     await relationshipsCollection.set(key, relationship);
                 }
 
             } catch (error) {
-                console.error('❌ Error saving data:', error);
+                console.error('Error saving data:', error);
                 throw error;
+            }
+        }
+
+        // Update existing resource sticky notes when global variables change
+        async function updateExistingResourceNotes(resourceType, oldValue, newValue) {
+            try {
+                console.log('Updating existing notes for:', resourceType, oldValue, '->', newValue);
+
+                const allItems = await miro.board.get({ type: 'sticky_note' });
+
+                const resourceNames = {
+                    'barrelSmall': 'Small Barrel',
+                    'barrelMedium': 'Med Barrel',
+                    'barrelBig': 'Big Barrel',
+                    'dig': 'Dig',
+                    'crate': 'Crate'
+                };
+
+                const resourceName = resourceNames[resourceType];
+                if (!resourceName) return;
+
+                let updatedCount = 0;
+
+                for (const item of allItems) {
+                    if (item.content && item.content.includes(`${resourceName} (${oldValue})`)) {
+                        const newContent = item.content.replace(`${resourceName} (${oldValue})`, `${resourceName} (${newValue})`);
+                        item.content = newContent;
+                        await item.sync();
+                        updatedCount++;
+
+                        console.log('Updated note:', item.id, newContent);
+                    }
+                }
+
+                if (updatedCount > 0) {
+                    console.log('Updated', updatedCount, 'existing notes for', resourceName);
+                }
+
+            } catch (error) {
+                console.error('Error updating existing notes:', error);
             }
         }
 
@@ -547,16 +584,20 @@
             };
 
             if (mapping[inputId]) {
+                const oldValue = appState.globalVars[mapping[inputId]];
                 appState.globalVars[mapping[inputId]] = value;
+
+                await updateExistingResourceNotes(mapping[inputId], oldValue, value);
+
                 await saveData();
-                showStatus('Global variables updated', 'success');
-                console.log('💾 Updated global variable:', inputId, '=', value);
+                showStatus('Global variables updated and existing notes refreshed', 'success');
+                console.log('Updated global variable and existing notes:', inputId, '=', value);
             }
         }
 
-        // Setup all event handlers for UI elements - NO .onclick assignments
+        // Setup all event handlers for UI elements
         function setupEventHandlers() {
-            console.log('🔧 Setting up event handlers...');
+            console.log('Setting up event handlers...');
 
             // Global variables input handlers
             const globalInputs = [
@@ -567,7 +608,7 @@
                 const input = safeGetElement(inputId);
                 if (input) {
                     input.addEventListener('change', handleGlobalVariableChange);
-                    console.log('✅ Added change listener to:', inputId);
+                    console.log('Added change listener to:', inputId);
                 }
             });
 
@@ -582,7 +623,7 @@
                 const button = safeGetElement(id);
                 if (button) {
                     button.addEventListener('click', handler);
-                    console.log('✅ Added click listener to:', name, 'button');
+                    console.log('Added click listener to:', name, 'button');
                 }
             });
 
@@ -598,10 +639,9 @@
             resourceButtons.forEach(({ id, resource, name }) => {
                 const button = safeGetElement(id);
                 if (button) {
-                    button.addEventListener('click', function () {
-                        createResource(resource);
-                    });
-                    console.log('✅ Added click listener to:', name, 'resource button');
+                    const handler = function () { createResource(resource); };
+                    button.addEventListener('click', handler);
+                    console.log('Added click listener to:', name, 'resource button');
                 }
             });
 
@@ -609,79 +649,80 @@
             const poolBtn = safeGetElement('createResourcePool');
             if (poolBtn) {
                 poolBtn.addEventListener('click', createResourcePool);
-                console.log('✅ Added click listener to: Resource Pool button');
+                console.log('Added click listener to: Resource Pool button');
             }
 
             const spawnBtn = safeGetElement('spawnBtn');
             if (spawnBtn) {
                 spawnBtn.addEventListener('click', spawnNumbers);
-                console.log('✅ Added click listener to: Spawn button');
+                console.log('Added click listener to: Spawn button');
             }
 
             // Relationships panel handlers
             const toggleBtn = safeGetElement('toggleRelationships');
             if (toggleBtn) {
                 toggleBtn.addEventListener('click', toggleRelationships);
-                console.log('✅ Added click listener to: Toggle Relationships button');
+                console.log('Added click listener to: Toggle Relationships button');
             }
 
             // Modal handlers
             const confirmBtn = safeGetElement('confirmRename');
             if (confirmBtn) {
                 confirmBtn.addEventListener('click', confirmRename);
-                console.log('✅ Added click listener to: Confirm Rename button');
+                console.log('Added click listener to: Confirm Rename button');
             }
 
             const cancelBtn = safeGetElement('cancelRename');
             if (cancelBtn) {
                 cancelBtn.addEventListener('click', cancelRename);
-                console.log('✅ Added click listener to: Cancel Rename button');
+                console.log('Added click listener to: Cancel Rename button');
             }
 
             // Close modal when clicking outside
             const modal = safeGetElement('renameModal');
             if (modal) {
-                modal.addEventListener('click', function (e) {
+                const modalHandler = function (e) {
                     if (e.target.id === 'renameModal') {
                         cancelRename();
                     }
-                });
-                console.log('✅ Added click listener to: Rename Modal');
+                };
+                modal.addEventListener('click', modalHandler);
+                console.log('Added click listener to: Rename Modal');
             }
 
-            console.log('🔧 Event handlers setup complete');
+            console.log('Event handlers setup complete');
         }
 
         // Setup Miro board event listeners
         async function setupMiroEventListeners() {
             try {
-                console.log('🎯 Setting up Miro event listeners...');
+                console.log('Setting up Miro event listeners...');
 
-                // IMPORTANT: Listen for icon click to open panel
+                // Listen for icon click to open panel
                 await miro.board.ui.on('icon:click', async () => {
-                    console.log('🖱️ App icon clicked - opening panel...');
+                    console.log('App icon clicked - opening panel...');
                     await miro.board.ui.openPanel({
                         url: window.location.href
                     });
                 });
-                console.log('✅ Registered icon:click listener');
+                console.log('Registered icon:click listener');
 
                 // Listen for selection changes
                 await miro.board.ui.on('selection:update', handleSelectionChange);
-                console.log('✅ Registered selection:update listener');
+                console.log('Registered selection:update listener');
 
                 // Listen for item updates that might affect our relationships
                 await miro.board.ui.on('experimental:items:update', handleItemsUpdate);
-                console.log('✅ Registered experimental:items:update listener');
+                console.log('Registered experimental:items:update listener');
 
                 // Listen for item deletion to clean up relationships
                 await miro.board.ui.on('items:delete', handleItemsDelete);
-                console.log('✅ Registered items:delete listener');
+                console.log('Registered items:delete listener');
 
-                console.log('🎯 Miro event listeners setup complete');
+                console.log('Miro event listeners setup complete');
 
             } catch (error) {
-                console.error('❌ Error setting up Miro event listeners:', error);
+                console.error('Error setting up Miro event listeners:', error);
                 throw error;
             }
         }
@@ -691,7 +732,7 @@
             try {
                 await updateSelectionStatus();
             } catch (error) {
-                console.error('❌ Error handling selection change:', error);
+                console.error('Error handling selection change:', error);
             }
         }
 
@@ -705,7 +746,7 @@
                 }
                 await updateRelationshipsUI();
             } catch (error) {
-                console.error('❌ Error handling items update:', error);
+                console.error('Error handling items update:', error);
             }
         }
 
@@ -720,7 +761,7 @@
                 await updateRelationshipsUI();
                 await saveData();
             } catch (error) {
-                console.error('❌ Error handling items delete:', error);
+                console.error('Error handling items delete:', error);
             }
         }
 
@@ -741,7 +782,7 @@
                 }
             });
 
-            console.log('🔄 Updated global variables UI');
+            console.log('Updated global variables UI');
         }
 
         // Update selection status and enable/disable buttons
@@ -777,7 +818,7 @@
                 if (expandBtn) expandBtn.disabled = count !== 1 || !isResultNote(validItems[0]);
 
             } catch (error) {
-                console.error('❌ Error updating selection status:', error);
+                console.error('Error updating selection status:', error);
             }
         }
 
@@ -814,7 +855,7 @@
         // Create sum calculation
         async function createSum() {
             try {
-                console.log('🧮 Creating sum calculation...');
+                console.log('Creating sum calculation...');
 
                 const selection = await miro.board.getSelection();
                 const validItems = selection.filter(item =>
@@ -839,7 +880,7 @@
                     x: avgX,
                     y: avgY - 100,
                     style: {
-                        fillColor: 'light_yellow',
+                        fillColor: 'yellow',
                         textAlign: 'center'
                     }
                 });
@@ -866,10 +907,10 @@
                 await updateRelationshipsUI();
 
                 showStatus(`Sum created: ${sum}`, 'success');
-                console.log('✅ Sum calculation created:', sum);
+                console.log('Sum calculation created:', sum);
 
             } catch (error) {
-                console.error('❌ Error creating sum:', error);
+                console.error('Error creating sum:', error);
                 showStatus('Error creating sum: ' + error.message, 'error');
             }
         }
@@ -877,7 +918,7 @@
         // Create product calculation
         async function createProduct() {
             try {
-                console.log('🧮 Creating product calculation...');
+                console.log('Creating product calculation...');
 
                 const selection = await miro.board.getSelection();
                 const validItems = selection.filter(item =>
@@ -902,7 +943,7 @@
                     x: avgX,
                     y: avgY - 100,
                     style: {
-                        fillColor: 'orange',
+                        fillColor: 'green',
                         textAlign: 'center'
                     }
                 });
@@ -929,10 +970,10 @@
                 await updateRelationshipsUI();
 
                 showStatus(`Product created: ${product}`, 'success');
-                console.log('✅ Product calculation created:', product);
+                console.log('Product calculation created:', product);
 
             } catch (error) {
-                console.error('❌ Error creating product:', error);
+                console.error('Error creating product:', error);
                 showStatus('Error creating product: ' + error.message, 'error');
             }
         }
@@ -940,7 +981,7 @@
         // Expand relationship (show sources)
         async function expandRelationship() {
             try {
-                console.log('🔍 Expanding relationship...');
+                console.log('Expanding relationship...');
 
                 const selection = await miro.board.getSelection();
                 if (selection.length !== 1) {
@@ -969,7 +1010,7 @@
                         const item = await miro.board.getById(id);
                         items.push(item);
                     } catch (e) {
-                        console.log('⚠️ Item not found:', id);
+                        console.log('Item not found:', id);
                     }
                 }
 
@@ -978,10 +1019,10 @@
                 }
 
                 showStatus('Relationship expanded', 'success');
-                console.log('✅ Relationship expanded');
+                console.log('Relationship expanded');
 
             } catch (error) {
-                console.error('❌ Error expanding relationship:', error);
+                console.error('Error expanding relationship:', error);
                 showStatus('Error expanding relationship: ' + error.message, 'error');
             }
         }
@@ -989,7 +1030,7 @@
         // Create resource sticky note
         async function createResource(resourceType) {
             try {
-                console.log('📦 Creating resource:', resourceType);
+                console.log('Creating resource:', resourceType);
 
                 const resourceValues = {
                     'barrel-small': { value: appState.globalVars.barrelSmall, name: 'Small Barrel', color: 'light_yellow' },
@@ -1001,7 +1042,7 @@
 
                 const resource = resourceValues[resourceType];
                 if (!resource) {
-                    console.warn('⚠️ Unknown resource type:', resourceType);
+                    console.warn('Unknown resource type:', resourceType);
                     return;
                 }
 
@@ -1020,10 +1061,10 @@
                 });
 
                 showStatus(`${resource.name} created`, 'success');
-                console.log('✅ Resource created:', resource.name);
+                console.log('Resource created:', resource.name);
 
             } catch (error) {
-                console.error('❌ Error creating resource:', error);
+                console.error('Error creating resource:', error);
                 showStatus('Error creating resource: ' + error.message, 'error');
             }
         }
@@ -1031,7 +1072,7 @@
         // Create resource pool
         async function createResourcePool() {
             try {
-                console.log('🏭 Creating resource pool...');
+                console.log('Creating resource pool...');
 
                 const resourceTypeSelect = safeGetElement('resourceTypeSelect');
                 const poolQuantityInput = safeGetElement('poolQuantity');
@@ -1092,15 +1133,15 @@
                     await miro.board.createConnector({
                         start: { item: notes[i].id },
                         end: { item: notes[i + 1].id },
-                        style: { strokeColor: '#666' }
+                        style: { strokeColor: 'gray' }
                     });
                 }
 
                 showStatus(`Resource pool of ${quantity} ${resource.name}s created`, 'success');
-                console.log('✅ Resource pool created:', quantity, resource.name);
+                console.log('Resource pool created:', quantity, resource.name);
 
             } catch (error) {
-                console.error('❌ Error creating resource pool:', error);
+                console.error('Error creating resource pool:', error);
                 showStatus('Error creating resource pool: ' + error.message, 'error');
             }
         }
@@ -1108,7 +1149,7 @@
         // Spawn connected numbers
         async function spawnNumbers() {
             try {
-                console.log('🔢 Spawning connected numbers...');
+                console.log('Spawning connected numbers...');
 
                 const spawnCountInput = safeGetElement('spawnCount');
                 if (!spawnCountInput) {
@@ -1159,10 +1200,10 @@
                 }
 
                 showStatus(`${count} connected numbers spawned`, 'success');
-                console.log('✅ Connected numbers spawned:', count);
+                console.log('Connected numbers spawned:', count);
 
             } catch (error) {
-                console.error('❌ Error spawning numbers:', error);
+                console.error('Error spawning numbers:', error);
                 showStatus('Error spawning numbers: ' + error.message, 'error');
             }
         }
@@ -1183,7 +1224,7 @@
                 }
             }
 
-            console.log('🔄 Toggled relationships visibility:', appState.isRelationshipsVisible);
+            console.log('Toggled relationships visibility:', appState.isRelationshipsVisible);
         }
 
         // Update relationships UI
@@ -1221,7 +1262,7 @@
         </div>
     `).join('');
 
-            console.log('🔄 Updated relationships UI:', count, 'relationships');
+            console.log('Updated relationships UI:', count, 'relationships');
         }
 
         // Go to relationship items
@@ -1238,7 +1279,7 @@
                         const item = await miro.board.getById(id);
                         items.push(item);
                     } catch (e) {
-                        console.log('⚠️ Item not found:', id);
+                        console.log('Item not found:', id);
                     }
                 }
 
@@ -1248,7 +1289,7 @@
                 }
 
             } catch (error) {
-                console.error('❌ Error going to relationship:', error);
+                console.error('Error going to relationship:', error);
                 showStatus('Error navigating to relationship', 'error');
             }
         }
@@ -1265,7 +1306,7 @@
                         const item = await miro.board.getById(id);
                         items.push(item);
                     } catch (e) {
-                        console.log('⚠️ Item not found:', id);
+                        console.log('Item not found:', id);
                     }
                 }
 
@@ -1275,7 +1316,7 @@
                 }
 
             } catch (error) {
-                console.error('❌ Error selecting parents:', error);
+                console.error('Error selecting parents:', error);
                 showStatus('Error selecting parent items', 'error');
             }
         }
@@ -1297,7 +1338,7 @@
                 renameInput.focus();
             }
 
-            console.log('✏️ Renaming relationship:', relationshipId);
+            console.log('Renaming relationship:', relationshipId);
         }
 
         async function confirmRename() {
@@ -1318,7 +1359,7 @@
                 await saveData();
                 await updateRelationshipsUI();
                 showStatus('Relationship renamed', 'success');
-                console.log('✅ Relationship renamed:', newName);
+                console.log('Relationship renamed:', newName);
             }
 
             cancelRename();
@@ -1332,7 +1373,7 @@
             if (modal) modal.style.display = 'none';
             if (input) input.value = '';
 
-            console.log('❌ Rename cancelled');
+            console.log('Rename cancelled');
         }
 
         // Delete relationship
@@ -1351,16 +1392,16 @@
                     const resultItem = await miro.board.getById(relationship.result);
                     await resultItem.setMetadata('calculatorRelationship', null);
                 } catch (e) {
-                    console.log('⚠️ Result item not found or already deleted');
+                    console.log('Result item not found or already deleted');
                 }
 
                 await saveData();
                 await updateRelationshipsUI();
                 showStatus('Relationship deleted', 'success');
-                console.log('🗑️ Relationship deleted:', relationshipId);
+                console.log('Relationship deleted:', relationshipId);
 
             } catch (error) {
-                console.error('❌ Error deleting relationship:', error);
+                console.error('Error deleting relationship:', error);
                 showStatus('Error deleting relationship', 'error');
             }
         }
@@ -1385,7 +1426,7 @@
                             }
                         }
                     } catch (e) {
-                        console.log('⚠️ Item not found during update:', itemId);
+                        console.log('Item not found during update:', itemId);
                     }
                 }
             }
@@ -1403,7 +1444,7 @@
 
             for (const id of toDelete) {
                 appState.relationships.delete(id);
-                console.log('🧹 Cleaned up relationship:', id);
+                console.log('Cleaned up relationship:', id);
             }
         }
 
@@ -1417,10 +1458,12 @@
             statusDiv.style.display = 'block';
 
             setTimeout(() => {
-                statusDiv.style.display = 'none';
+                if (statusDiv) {
+                    statusDiv.style.display = 'none';
+                }
             }, 3000);
 
-            console.log(`💬 Status [${type}]:`, message);
+            console.log(`Status [${type}]:`, message);
         }
 
         // Handle keyboard events
@@ -1484,82 +1527,23 @@
                 await saveData();
                 await updateRelationshipsUI();
                 showStatus(`Cleaned up ${toDelete.length} invalid relationship(s)`, 'success');
-                console.log('🧹 Data validation completed:', toDelete.length, 'invalid relationships removed');
+                console.log('Data validation completed:', toDelete.length, 'invalid relationships removed');
             }
         }
-
-        // Debug functions (available in console)
-        window.debugMiroCalculator = {
-            getState: () => appState,
-            validateData: validateAndCleanData,
-            clearAllData: async () => {
-                if (confirm('Clear all calculator data? This cannot be undone.')) {
-                    appState.relationships.clear();
-                    await miro.board.setAppData(RELATIONSHIPS_KEY, null);
-                    const relationshipsCollection = miro.board.storage.collection('relationships');
-                    await relationshipsCollection.set('keys', []);
-                    await updateRelationshipsUI();
-                    showStatus('All data cleared', 'success');
-                    console.log('🧹 All data cleared');
-                }
-            },
-            refreshAllNotes: async () => {
-                console.log('🔄 Manually refreshing all resource notes...');
-                for (const [resourceType, value] of Object.entries(appState.globalVars)) {
-                    // This will update all notes for each resource type
-                    await updateExistingResourceNotes(resourceType, 999, value); // Use 999 as old value to catch any notes
-                    await updateExistingResourceNotes(resourceType, 1, value);   // Common old values
-                    await updateExistingResourceNotes(resourceType, 5, value);
-                    await updateExistingResourceNotes(resourceType, 10, value);
-                    await updateExistingResourceNotes(resourceType, 15, value);
-                    await updateExistingResourceNotes(resourceType, 20, value);
-                }
-                showStatus('All notes refreshed with current global values', 'success');
-            },
-
-            /*window.debugMiroCalculator = {
-                getState: () => appState,
-                validateData: validateAndCleanData,
-                clearAllData: async () => {  ...  },
-                refreshAllNotes: async () => {  ...  },
-                memoryReport: () => {  ...  },
-                deploymentId: DEPLOYMENT_ID,
-                version: APP_VERSION
-            
-            };*/
-
-            memoryReport: () => {
-                console.log('📊 Memory Usage Report:');
-                console.log('- Event Listeners:', appState.eventListeners.size);
-                console.log('- Active Timeouts:', appState.timeouts.size);
-                console.log('- Active Intervals:', appState.intervals.size);
-                console.log('- Relationships:', appState.relationships.size);
-                console.log('- Current Rename ID:', currentRenameId);
-                return {
-                    eventListeners: appState.eventListeners.size,
-                    timeouts: appState.timeouts.size,
-                    intervals: appState.intervals.size,
-                    relationships: appState.relationships.size,
-                    currentRenameId: currentRenameId !== null
-                };
-            },
-            deploymentId: DEPLOYMENT_ID,
-            version: APP_VERSION
-        };
 
         // Initialize the app
         async function initializeApp() {
             if (appState.initialized) {
-                console.log('⚠️ App already initialized, skipping...');
+                console.log('App already initialized, skipping...');
                 return;
             }
 
             try {
-                console.log('🚀 Initializing Miro Resource Calculator...');
+                console.log('Initializing Miro Resource Calculator...');
 
                 // Wait for DOM to be ready
                 await waitForDOM();
-                console.log('✅ DOM ready');
+                console.log('DOM ready');
 
                 // Verify critical elements exist
                 const criticalElements = [
@@ -1577,7 +1561,7 @@
                 if (missingElements.length > 0) {
                     throw new Error(`Missing critical DOM elements: ${missingElements.join(', ')}`);
                 }
-                console.log('✅ All critical DOM elements found');
+                console.log('All critical DOM elements found');
 
                 // Load persistent data
                 await loadPersistedData();
@@ -1595,16 +1579,16 @@
 
                 // Start periodic data validation
                 setInterval(validateAndCleanData, 30000);
-                console.log('✅ Started periodic data validation (30s interval)');
+                console.log('Started periodic data validation (30s interval)');
 
                 // Mark as initialized
                 appState.initialized = true;
 
-                console.log('🎉 Miro Resource Calculator initialized successfully!');
+                console.log('Miro Resource Calculator initialized successfully!');
                 showStatus('App initialized successfully', 'success');
 
             } catch (error) {
-                console.error('❌ Failed to initialize app:', error);
+                console.error('Failed to initialize app:', error);
                 showStatus('Failed to initialize app: ' + error.message, 'error');
                 throw error;
             }
@@ -1612,39 +1596,34 @@
 
         // Error handling for unhandled promises
         window.addEventListener('unhandledrejection', (event) => {
-            console.error('❌ Unhandled promise rejection:', event.reason);
+            console.error('Unhandled promise rejection:', event.reason);
             showStatus('An unexpected error occurred', 'error');
-        });
-
-        // Prevent duplicate initialization
-        window.addEventListener('beforeunload', () => {
-            console.log('👋 App unloading...');
         });
 
         // Start the app
         async function startApp() {
             try {
-                console.log('🚀 Starting Miro Resource Calculator App...');
-                console.log('📋 Deployment ID:', DEPLOYMENT_ID);
-                console.log('📋 App Version:', APP_VERSION);
+                console.log('Starting Miro Resource Calculator App...');
+                console.log('Deployment ID:', DEPLOYMENT_ID);
+                console.log('App Version:', APP_VERSION);
 
                 // Wait for DOM to be ready
                 await waitForDOM();
-                console.log('✅ DOM ready for initialization');
+                console.log('DOM ready for initialization');
 
                 // Check if Miro SDK is available
                 if (!window.miro) {
                     throw new Error('Miro SDK not available - make sure the SDK script is loaded');
                 }
-                console.log('✅ Miro SDK detected');
+                console.log('Miro SDK detected');
 
                 // Initialize the app
                 await initializeApp();
 
-                console.log('🎉 App started successfully!');
+                console.log('App started successfully!');
 
             } catch (error) {
-                console.error('❌ Failed to start app:', error);
+                console.error('Failed to start app:', error);
 
                 // Try to show error in multiple ways
                 const statusDiv = document.getElementById('status');
@@ -1667,7 +1646,7 @@
             }
         }
 
-        // Start the app immediately - cache busting ensures fresh execution
+        // Start the app immediately
         startApp();
     </script>
 </body>
