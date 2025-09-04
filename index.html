@@ -839,7 +839,7 @@
                     x: avgX,
                     y: avgY - 100,
                     style: {
-                        fillColor: 'light_yellow',
+                        fillColor: '#ffc107',
                         textAlign: 'center'
                     }
                 });
@@ -992,11 +992,11 @@
                 console.log('📦 Creating resource:', resourceType);
 
                 const resourceValues = {
-                    'barrel-small': { value: appState.globalVars.barrelSmall, name: 'Small Barrel', color: 'light_yellow' },
-                    'barrel-medium': { value: appState.globalVars.barrelMedium, name: 'Med Barrel', color: 'yellow' },
-                    'barrel-big': { value: appState.globalVars.barrelBig, name: 'Big Barrel', color: 'orange' },
-                    'dig': { value: appState.globalVars.dig, name: 'Dig', color: 'light_green' },
-                    'crate': { value: appState.globalVars.crate, name: 'Crate', color: 'light_blue' }
+                    'barrel-small': { value: appState.globalVars.barrelSmall, name: 'Small Barrel', color: '#fff3cd' },
+                    'barrel-medium': { value: appState.globalVars.barrelMedium, name: 'Med Barrel', color: '#ffeaa7' },
+                    'barrel-big': { value: appState.globalVars.barrelBig, name: 'Big Barrel', color: '#fdcb6e' },
+                    'dig': { value: appState.globalVars.dig, name: 'Dig', color: '#d4edda' },
+                    'crate': { value: appState.globalVars.crate, name: 'Crate', color: '#d1ecf1' }
                 };
 
                 const resource = resourceValues[resourceType];
@@ -1154,7 +1154,7 @@
                     await miro.board.createConnector({
                         start: { item: notes[i].id },
                         end: { item: notes[nextIndex].id },
-                        style: { strokeColor: '#666' }
+                        style: { strokeColor: 'gray' }
                     });
                 }
 
@@ -1502,6 +1502,35 @@
                     showStatus('All data cleared', 'success');
                     console.log('🧹 All data cleared');
                 }
+            },
+            refreshAllNotes: async () => {
+                console.log('🔄 Manually refreshing all resource notes...');
+                for (const [resourceType, value] of Object.entries(appState.globalVars)) {
+                    // This will update all notes for each resource type
+                    await updateExistingResourceNotes(resourceType, 999, value); // Use 999 as old value to catch any notes
+                    await updateExistingResourceNotes(resourceType, 1, value);   // Common old values
+                    await updateExistingResourceNotes(resourceType, 5, value);
+                    await updateExistingResourceNotes(resourceType, 10, value);
+                    await updateExistingResourceNotes(resourceType, 15, value);
+                    await updateExistingResourceNotes(resourceType, 20, value);
+                }
+                showStatus('All notes refreshed with current global values', 'success');
+            },
+            cleanup: cleanupAllResources,
+            memoryReport: () => {
+                console.log('📊 Memory Usage Report:');
+                console.log('- Event Listeners:', appState.eventListeners.size);
+                console.log('- Active Timeouts:', appState.timeouts.size);
+                console.log('- Active Intervals:', appState.intervals.size);
+                console.log('- Relationships:', appState.relationships.size);
+                console.log('- Current Rename ID:', currentRenameId);
+                return {
+                    eventListeners: appState.eventListeners.size,
+                    timeouts: appState.timeouts.size,
+                    intervals: appState.intervals.size,
+                    relationships: appState.relationships.size,
+                    currentRenameId: currentRenameId !== null
+                };
             },
             deploymentId: DEPLOYMENT_ID,
             version: APP_VERSION
