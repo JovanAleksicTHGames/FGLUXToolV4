@@ -428,8 +428,8 @@
     <script>
         // The complete JavaScript code goes here, as provided in the previous snippets.
         // Miro Resource Calculator App - SDK v2 Compatible
-        // Complete JavaScript with dynamic updates, proper cleanup, and memory management
-        console.log('Miro Resource Calculator v2.1 - Loading...', new Date().toISOString());
+        // Fixed version with proper expand relationship functionality
+        console.log('Miro Resource Calculator v2.2 - Loading...', new Date().toISOString());
 
         // Global state management
         let appState = {
@@ -445,31 +445,29 @@
             initialized: false,
             updateThrottles: new Map(),
             intervals: new Set(),
-            timeouts: new Set()
+            timeouts: new Set(),
+            expandMode: null // Track if we're in expand mode
         };
 
         // App metadata keys for persistence
         const RELATIONSHIPS_KEY = 'calculatorRelationships';
         const GLOBAL_VARS_KEY = 'globalVariables';
-        const APP_VERSION = '2.1.0';
+        const APP_VERSION = '2.2.0';
         const DEPLOYMENT_ID = Date.now();
-        const UPDATE_THROTTLE_DELAY = 500; // 500ms throttle
+        const UPDATE_THROTTLE_DELAY = 500;
         console.log('Deployment ID:', DEPLOYMENT_ID);
 
         // Throttled update system for dynamic recalculation
         function throttleUpdate(key, callback, immediate = false) {
-            // Clear existing timeout for this key
             if (appState.updateThrottles.has(key)) {
                 clearTimeout(appState.updateThrottles.get(key));
             }
 
             if (immediate) {
-                // Execute immediately and don't throttle
                 callback();
                 return;
             }
 
-            // Set new timeout
             const timeoutId = setTimeout(() => {
                 callback();
                 appState.updateThrottles.delete(key);
@@ -490,17 +488,13 @@
         // Memory cleanup function
         function cleanupMemory() {
             console.log('Cleaning up memory...');
-
-            // Clear all throttled updates
             cleanupThrottles();
 
-            // Clear any intervals
             for (const intervalId of appState.intervals) {
                 clearInterval(intervalId);
             }
             appState.intervals.clear();
 
-            // Clear any timeouts
             for (const timeoutId of appState.timeouts) {
                 clearTimeout(timeoutId);
             }
@@ -539,14 +533,12 @@
             try {
                 console.log('Loading persisted data...');
 
-                // Load global variables from Miro app data
                 const savedGlobals = await miro.board.getAppData(GLOBAL_VARS_KEY);
                 if (savedGlobals) {
                     appState.globalVars = { ...appState.globalVars, ...savedGlobals };
                     console.log('Loaded global variables:', appState.globalVars);
                 }
 
-                // Load relationships using storage collection
                 const relationshipsCollection = miro.board.storage.collection('relationships');
                 const relationshipKeys = await relationshipsCollection.get('keys') || [];
 
@@ -643,7 +635,6 @@
 
                 await updateExistingResourceNotes(mapping[inputId], oldValue, value);
 
-                // IMPORTANT: After updating resource notes, check all relationships for updates
                 console.log('Checking all relationships for updates after global variable change...');
                 await checkAllRelationshipsForUpdates();
 
@@ -659,8 +650,6 @@
 
             for (const [relationshipId, relationship] of appState.relationships) {
                 console.log('Immediately checking relationship:', relationshipId);
-
-                // Use immediate execution for global variable changes
                 throttleUpdate(relationshipId, () => recalculateRelationship(relationshipId), true);
             }
 
@@ -690,7 +679,6 @@
 
                 console.log('Recalculating relationship:', relationshipId, 'type:', relationship.type);
 
-                // Get current values from source notes
                 const currentValues = [];
                 let allSourcesValid = true;
                 const sourceContents = [];
@@ -725,7 +713,6 @@
                     return;
                 }
 
-                // Calculate new result
                 let newResult;
                 if (relationship.type === 'sum') {
                     newResult = currentValues.reduce((acc, val) => acc + val, 0);
@@ -738,8 +725,7 @@
 
                 console.log('Calculated new result:', newResult, 'old result:', relationship.resultValue);
 
-                // Update result note if value changed
-                if (Math.abs(newResult - relationship.resultValue) > 0.001) { // Use small epsilon for floating point comparison
+                if (Math.abs(newResult - relationship.resultValue) > 0.001) {
                     try {
                         const resultItem = await miro.board.getById(relationship.result);
                         const newContent = `${relationship.type === 'sum' ? 'Sum' : 'Product'}: ${newResult}`;
@@ -749,7 +735,6 @@
                         resultItem.content = newContent;
                         await resultItem.sync();
 
-                        // Update relationship data
                         relationship.values = currentValues;
                         relationship.resultValue = newResult;
                         relationship.lastUpdated = Date.now();
@@ -779,32 +764,27 @@
         function extractNumericValue(content) {
             if (!content || typeof content !== 'string') return null;
 
-            // Clean the content string
             const cleanContent = content.trim();
             if (!cleanContent) return null;
 
-            // Look for numbers in parentheses first: "Small Barrel (10.5)"
             const parenMatch = cleanContent.match(/\((\d+(?:\.\d+)?)\)/);
             if (parenMatch) {
                 const value = parseFloat(parenMatch[1]);
                 return isNaN(value) ? null : value;
             }
 
-            // Look for Sum: or Product: patterns
             const resultMatch = cleanContent.match(/(?:Sum|Product):\s*(\d+(?:\.\d+)?)/i);
             if (resultMatch) {
                 const value = parseFloat(resultMatch[1]);
                 return isNaN(value) ? null : value;
             }
 
-            // Look for standalone numbers at the beginning
             const numberMatch = cleanContent.match(/^(\d+(?:\.\d+)?)(?:\s|$)/);
             if (numberMatch) {
                 const value = parseFloat(numberMatch[1]);
                 return isNaN(value) ? null : value;
             }
 
-            // Look for any number in the content as last resort
             const anyNumberMatch = cleanContent.match(/(\d+(?:\.\d+)?)/);
             if (anyNumberMatch) {
                 const value = parseFloat(anyNumberMatch[1]);
@@ -829,7 +809,6 @@
         function setupEventHandlers() {
             console.log('Setting up event handlers...');
 
-            // Global variables input handlers
             const globalInputs = [
                 'barrelSmall', 'barrelMedium', 'barrelBig', 'digValue', 'crateValue'
             ];
@@ -842,7 +821,6 @@
                 }
             });
 
-            // Calculator button handlers
             const calculatorButtons = [
                 { id: 'sumBtn', handler: createSum, name: 'Sum' },
                 { id: 'productBtn', handler: createProduct, name: 'Product' },
@@ -857,7 +835,6 @@
                 }
             });
 
-            // Resource creation handlers
             const resourceButtons = [
                 { id: 'createBarrelSmall', resource: 'barrel-small', name: 'Small Barrel' },
                 { id: 'createBarrelMedium', resource: 'barrel-medium', name: 'Med Barrel' },
@@ -875,7 +852,6 @@
                 }
             });
 
-            // Pool and spawn handlers
             const poolBtn = safeGetElement('createResourcePool');
             if (poolBtn) {
                 poolBtn.addEventListener('click', createResourcePool);
@@ -888,14 +864,12 @@
                 console.log('Added click listener to: Spawn button');
             }
 
-            // Relationships panel handlers
             const toggleBtn = safeGetElement('toggleRelationships');
             if (toggleBtn) {
                 toggleBtn.addEventListener('click', toggleRelationships);
                 console.log('Added click listener to: Toggle Relationships button');
             }
 
-            // Modal handlers
             const confirmBtn = safeGetElement('confirmRename');
             if (confirmBtn) {
                 confirmBtn.addEventListener('click', confirmRename);
@@ -908,7 +882,6 @@
                 console.log('Added click listener to: Cancel Rename button');
             }
 
-            // Close modal when clicking outside
             const modal = safeGetElement('renameModal');
             if (modal) {
                 const modalHandler = function (e) {
@@ -928,7 +901,6 @@
             try {
                 console.log('Setting up Miro event listeners...');
 
-                // Listen for icon click to open panel
                 await miro.board.ui.on('icon:click', async () => {
                     console.log('App icon clicked - opening panel...');
                     await miro.board.ui.openPanel({
@@ -937,11 +909,9 @@
                 });
                 console.log('Registered icon:click listener');
 
-                // Listen for selection changes
                 await miro.board.ui.on('selection:update', handleSelectionChange);
                 console.log('Registered selection:update listener');
 
-                // Try multiple event listeners for item updates since experimental:items:update might not work
                 try {
                     await miro.board.ui.on('experimental:items:update', handleItemsUpdate);
                     console.log('Registered experimental:items:update listener');
@@ -949,7 +919,6 @@
                     console.warn('experimental:items:update not available:', e.message);
                 }
 
-                // Also try the standard items:update event
                 try {
                     await miro.board.ui.on('items:update', handleItemsUpdate);
                     console.log('Registered items:update listener');
@@ -957,12 +926,10 @@
                     console.warn('items:update not available:', e.message);
                 }
 
-                // Listen for item deletion to clean up relationships
                 await miro.board.ui.on('items:delete', handleItemsDelete);
                 console.log('Registered items:delete listener');
 
-                // Start a periodic check for updates as a fallback
-                const updateCheckInterval = setInterval(checkForUpdates, 2000); // Check every 2 seconds
+                const updateCheckInterval = setInterval(checkForUpdates, 2000);
                 appState.intervals.add(updateCheckInterval);
                 console.log('Started periodic update check (2s interval)');
 
@@ -978,8 +945,65 @@
         async function handleSelectionChange() {
             try {
                 await updateSelectionStatus();
+
+                // Handle expand mode selection
+                if (appState.expandMode) {
+                    await handleExpandModeSelection();
+                }
             } catch (error) {
                 console.error('Error handling selection change:', error);
+            }
+        }
+
+        // Handle expand mode selection
+        async function handleExpandModeSelection() {
+            try {
+                const selection = await miro.board.getSelection();
+                const validItems = selection.filter(item =>
+                    item.type === 'sticky_note' && hasNumericContent(item.content) && !isResultNote(item)
+                );
+
+                if (validItems.length > 0) {
+                    console.log('Adding', validItems.length, 'items to relationship in expand mode');
+                    await addItemsToRelationship(appState.expandMode.relationshipId, validItems);
+                }
+            } catch (error) {
+                console.error('Error handling expand mode selection:', error);
+            }
+        }
+
+        // Add items to existing relationship
+        async function addItemsToRelationship(relationshipId, newItems) {
+            try {
+                const relationship = appState.relationships.get(relationshipId);
+                if (!relationship) {
+                    console.error('Relationship not found:', relationshipId);
+                    return;
+                }
+
+                const newSourceIds = newItems.map(item => item.id);
+                const existingSourceIds = relationship.sources;
+
+                // Filter out items that are already in the relationship
+                const uniqueNewSourceIds = newSourceIds.filter(id => !existingSourceIds.includes(id));
+
+                if (uniqueNewSourceIds.length === 0) {
+                    showStatus('Selected items are already in this relationship', 'error');
+                    return;
+                }
+
+                // Add new sources to the relationship
+                relationship.sources = [...existingSourceIds, ...uniqueNewSourceIds];
+
+                // Recalculate immediately
+                await recalculateRelationship(relationshipId);
+
+                showStatus(`Added ${uniqueNewSourceIds.length} items to ${relationship.name}`, 'success');
+                console.log('Added items to relationship:', uniqueNewSourceIds);
+
+            } catch (error) {
+                console.error('Error adding items to relationship:', error);
+                showStatus('Error adding items to relationship', 'error');
             }
         }
 
@@ -990,7 +1014,6 @@
 
                 if (event.items) {
                     for (const item of event.items) {
-                        // Find relationships that involve this item as a source
                         const affectedRelationships = [];
 
                         for (const [relationshipId, relationship] of appState.relationships) {
@@ -1001,7 +1024,6 @@
 
                         console.log(`Item ${item.id} affects ${affectedRelationships.length} relationships`);
 
-                        // Throttle recalculation for each affected relationship
                         for (const relationshipId of affectedRelationships) {
                             throttleUpdate(relationshipId, () => recalculateRelationship(relationshipId));
                         }
@@ -1017,7 +1039,6 @@
             try {
                 if (appState.relationships.size === 0) return;
 
-                // Check all relationships for changes in source values
                 for (const [relationshipId, relationship] of appState.relationships) {
                     let needsUpdate = false;
                     const currentValues = [];
@@ -1048,7 +1069,6 @@
                         }
                     }
 
-                    // Check if values have changed
                     if (!needsUpdate && currentValues.length === relationship.values.length) {
                         for (let i = 0; i < currentValues.length; i++) {
                             if (Math.abs(currentValues[i] - relationship.values[i]) > 0.001) {
@@ -1121,10 +1141,11 @@
                 const count = validItems.length;
                 const hasValidSelection = count >= 2;
 
-                // Update selection display
                 const selectionDiv = safeGetElement('selection');
                 if (selectionDiv) {
-                    if (count === 0) {
+                    if (appState.expandMode) {
+                        selectionDiv.textContent = `EXPAND MODE: Select items to add to ${appState.expandMode.relationshipName} (Click Expand again to exit)`;
+                    } else if (count === 0) {
                         selectionDiv.textContent = 'Select sticky notes with numbers';
                     } else if (count === 1) {
                         selectionDiv.textContent = `1 numeric sticky note selected (need 2+)`;
@@ -1133,14 +1154,23 @@
                     }
                 }
 
-                // Enable/disable buttons safely
                 const sumBtn = safeGetElement('sumBtn');
                 const productBtn = safeGetElement('productBtn');
                 const expandBtn = safeGetElement('expandBtn');
 
-                if (sumBtn) sumBtn.disabled = !hasValidSelection;
-                if (productBtn) productBtn.disabled = !hasValidSelection;
-                if (expandBtn) expandBtn.disabled = count !== 1 || !isResultNote(validItems[0]);
+                if (sumBtn) sumBtn.disabled = !hasValidSelection || appState.expandMode;
+                if (productBtn) productBtn.disabled = !hasValidSelection || appState.expandMode;
+                if (expandBtn) {
+                    if (appState.expandMode) {
+                        expandBtn.disabled = false;
+                        expandBtn.textContent = 'Exit Expand Mode';
+                        expandBtn.style.backgroundColor = '#dc3545';
+                    } else {
+                        expandBtn.disabled = count !== 1 || !isResultNote(validItems[0]);
+                        expandBtn.textContent = 'Expand Relationship';
+                        expandBtn.style.backgroundColor = '#17a2b8';
+                    }
+                }
 
             } catch (error) {
                 console.error('Error updating selection status:', error);
@@ -1165,11 +1195,9 @@
                 const values = validItems.map(item => extractNumericValue(item.content));
                 const sum = values.reduce((acc, val) => acc + val, 0);
 
-                // Calculate position for result note
                 const avgX = validItems.reduce((acc, item) => acc + item.x, 0) / validItems.length;
                 const avgY = validItems.reduce((acc, item) => acc + item.y, 0) / validItems.length;
 
-                // Create result sticky note
                 const resultNote = await miro.board.createStickyNote({
                     content: `Sum: ${sum}`,
                     x: avgX,
@@ -1180,7 +1208,6 @@
                     }
                 });
 
-                // Create relationship
                 const relationshipId = generateRelationshipId();
                 const relationship = {
                     id: relationshipId,
@@ -1195,7 +1222,6 @@
 
                 appState.relationships.set(relationshipId, relationship);
 
-                // Store relationship metadata in result note
                 await resultNote.setMetadata('calculatorRelationship', relationshipId);
 
                 await saveData();
@@ -1228,11 +1254,9 @@
                 const values = validItems.map(item => extractNumericValue(item.content));
                 const product = values.reduce((acc, val) => acc * val, 1);
 
-                // Calculate position for result note
                 const avgX = validItems.reduce((acc, item) => acc + item.x, 0) / validItems.length;
                 const avgY = validItems.reduce((acc, item) => acc + item.y, 0) / validItems.length;
 
-                // Create result sticky note
                 const resultNote = await miro.board.createStickyNote({
                     content: `Product: ${product}`,
                     x: avgX,
@@ -1243,7 +1267,6 @@
                     }
                 });
 
-                // Create relationship
                 const relationshipId = generateRelationshipId();
                 const relationship = {
                     id: relationshipId,
@@ -1258,7 +1281,6 @@
 
                 appState.relationships.set(relationshipId, relationship);
 
-                // Store relationship metadata in result note
                 await resultNote.setMetadata('calculatorRelationship', relationshipId);
 
                 await saveData();
@@ -1273,14 +1295,23 @@
             }
         }
 
-        // Expand relationship (show sources)
+        // FIXED: Expand relationship - now allows adding new elements to existing relationships
         async function expandRelationship() {
             try {
-                console.log('Expanding relationship...');
+                if (appState.expandMode) {
+                    // Exit expand mode
+                    appState.expandMode = null;
+                    await updateSelectionStatus();
+                    showStatus('Exited expand mode', 'success');
+                    console.log('Exited expand mode');
+                    return;
+                }
+
+                console.log('Entering expand relationship mode...');
 
                 const selection = await miro.board.getSelection();
                 if (selection.length !== 1) {
-                    showStatus('Select exactly one result note', 'error');
+                    showStatus('Select exactly one result note to expand', 'error');
                     return;
                 }
 
@@ -1293,32 +1324,20 @@
                 }
 
                 const relationship = appState.relationships.get(relationshipId);
-                const sourceIds = [...relationship.sources, relationship.result];
 
-                // Select all related items
-                await miro.board.select({ id: sourceIds });
+                // Enter expand mode
+                appState.expandMode = {
+                    relationshipId: relationshipId,
+                    relationshipName: relationship.name
+                };
 
-                // Focus viewport on the items
-                const items = [];
-                for (const id of sourceIds) {
-                    try {
-                        const item = await miro.board.getById(id);
-                        items.push(item);
-                    } catch (e) {
-                        console.log('Item not found:', id);
-                    }
-                }
-
-                if (items.length > 0) {
-                    await miro.board.viewport.zoomTo(items);
-                }
-
-                showStatus('Relationship expanded', 'success');
-                console.log('Relationship expanded');
+                await updateSelectionStatus();
+                showStatus(`Expand mode: Select numeric sticky notes to add to ${relationship.name}`, 'success');
+                console.log('Entered expand mode for relationship:', relationshipId);
 
             } catch (error) {
-                console.error('Error expanding relationship:', error);
-                showStatus('Error expanding relationship: ' + error.message, 'error');
+                console.error('Error in expand relationship:', error);
+                showStatus('Error in expand relationship: ' + error.message, 'error');
             }
         }
 
@@ -1423,7 +1442,6 @@
                     notes.push(note);
                 }
 
-                // Create connectors between notes
                 for (let i = 0; i < notes.length - 1; i++) {
                     await miro.board.createConnector({
                         start: { item: notes[i].id },
@@ -1484,7 +1502,6 @@
                     notes.push(note);
                 }
 
-                // Create connectors between consecutive notes
                 for (let i = 0; i < notes.length; i++) {
                     const nextIndex = (i + 1) % notes.length;
                     await miro.board.createConnector({
@@ -1526,7 +1543,6 @@
         async function updateRelationshipsUI() {
             const count = appState.relationships.size;
 
-            // Safely update count - element might not exist
             const countElement = safeGetElement('relationshipCount');
             if (countElement) {
                 countElement.textContent = count;
@@ -1554,7 +1570,7 @@
                 <span>${rel.type === 'sum' ? 'Sum' : 'Product'}: ${rel.resultValue}</span>
                 <span class="relationship-name" onclick="event.stopPropagation(); renameRelationship('${rel.id}')">${rel.name}</span>
             </div>
-            <div class="relationship-sources">Sources: ${rel.values.join(' + ')}</div>
+            <div class="relationship-sources">Sources: ${rel.values.join(' + ')} (${rel.sources.length} items)</div>
             <div class="relationship-actions">
                 <button class="action-btn goto-btn" onclick="gotoRelationship('${rel.id}')">Go To</button>
                 <button class="action-btn select-parents-btn" onclick="selectParents('${rel.id}')">Select Parents</button>
@@ -1678,7 +1694,7 @@
             console.log('Rename cancelled');
         }
 
-        // Delete relationship - NOW DELETES ALL STICKY NOTES AND CLEARS METADATA
+        // Delete relationship - deletes all sticky notes and clears metadata
         async function deleteRelationship(relationshipId) {
             try {
                 const relationship = appState.relationships.get(relationshipId);
@@ -1686,28 +1702,23 @@
 
                 if (!confirm(`Delete relationship "${relationship.name}" and all its sticky notes?`)) return;
 
-                // Cancel any pending updates for this relationship
                 if (appState.updateThrottles.has(relationshipId)) {
                     clearTimeout(appState.updateThrottles.get(relationshipId));
                     appState.updateThrottles.delete(relationshipId);
                 }
 
-                // Collect all items to delete (sources + result)
                 const itemsToDelete = [...relationship.sources, relationship.result];
                 const deletedItems = [];
 
-                // Delete all sticky notes in the relationship
                 for (const itemId of itemsToDelete) {
                     try {
                         const item = await miro.board.getById(itemId);
 
-                        // Clear metadata before deletion
                         const metadata = await item.getMetadata('calculatorRelationship');
                         if (metadata) {
                             await item.setMetadata('calculatorRelationship', null);
                         }
 
-                        // Delete the item using Miro SDK v2 method
                         await item.remove();
                         deletedItems.push(itemId);
                         console.log('Deleted sticky note:', itemId);
@@ -1717,7 +1728,6 @@
                     }
                 }
 
-                // Remove relationship from app state
                 appState.relationships.delete(relationshipId);
 
                 await saveData();
@@ -1737,7 +1747,6 @@
         }
 
         async function cleanupRelationshipsForItem(itemId) {
-            // Remove relationships that reference deleted items
             const toDelete = [];
 
             for (const [id, relationship] of appState.relationships) {
@@ -1747,7 +1756,6 @@
             }
 
             for (const id of toDelete) {
-                // Cancel any pending updates for this relationship
                 if (appState.updateThrottles.has(id)) {
                     clearTimeout(appState.updateThrottles.get(id));
                     appState.updateThrottles.delete(id);
@@ -1780,7 +1788,6 @@
 
         // Handle keyboard events
         document.addEventListener('keydown', (e) => {
-            // Handle Enter key in rename modal
             if (e.key === 'Enter' && currentRenameId &&
                 safeGetElement('renameModal') &&
                 safeGetElement('renameModal').style.display === 'block') {
@@ -1788,10 +1795,14 @@
                 confirmRename();
             }
 
-            // Handle Escape key to close modal
             if (e.key === 'Escape' && currentRenameId) {
                 e.preventDefault();
                 cancelRename();
+            }
+
+            // Exit expand mode with Escape key
+            if (e.key === 'Escape' && appState.expandMode) {
+                expandRelationship(); // This will exit expand mode
             }
         });
 
@@ -1809,14 +1820,12 @@
             for (const [id, relationship] of appState.relationships) {
                 let isValid = true;
 
-                // Check if result item still exists
                 try {
                     await miro.board.getById(relationship.result);
                 } catch (e) {
                     isValid = false;
                 }
 
-                // Check if source items still exist
                 for (const sourceId of relationship.sources) {
                     try {
                         await miro.board.getById(sourceId);
@@ -1831,7 +1840,6 @@
                 }
             }
 
-            // Remove invalid relationships
             for (const id of toDelete) {
                 appState.relationships.delete(id);
             }
@@ -1854,11 +1862,9 @@
             try {
                 console.log('Initializing Miro Resource Calculator...');
 
-                // Wait for DOM to be ready
                 await waitForDOM();
                 console.log('DOM ready');
 
-                // Verify critical elements exist
                 const criticalElements = [
                     'barrelSmall', 'barrelMedium', 'barrelBig', 'digValue', 'crateValue',
                     'sumBtn', 'productBtn', 'expandBtn', 'selection'
@@ -1876,26 +1882,17 @@
                 }
                 console.log('All critical DOM elements found');
 
-                // Load persistent data
                 await loadPersistedData();
-
-                // Setup event handlers
                 setupEventHandlers();
-
-                // Setup Miro board event listeners
                 await setupMiroEventListeners();
-
-                // Update UI with loaded data
                 updateGlobalVariablesUI();
                 await updateSelectionStatus();
                 await updateRelationshipsUI();
 
-                // Start periodic data validation
                 const validationInterval = setInterval(validateAndCleanData, 30000);
                 appState.intervals.add(validationInterval);
                 console.log('Started periodic data validation (30s interval)');
 
-                // Mark as initialized
                 appState.initialized = true;
 
                 console.log('Miro Resource Calculator initialized successfully!');
@@ -1935,17 +1932,14 @@
                 console.log('App Version:', APP_VERSION);
                 console.log('Deployment ID:', DEPLOYMENT_ID);
 
-                // Wait for DOM to be ready
                 await waitForDOM();
                 console.log('DOM ready for initialization');
 
-                // Check if Miro SDK is available
                 if (!window.miro) {
                     throw new Error('Miro SDK not available - make sure the SDK script is loaded');
                 }
                 console.log('Miro SDK detected');
 
-                // Initialize the app
                 await initializeApp();
 
                 console.log('App started successfully!');
@@ -1953,7 +1947,6 @@
             } catch (error) {
                 console.error('Failed to start app:', error);
 
-                // Try to show error in multiple ways
                 const statusDiv = document.getElementById('status');
                 if (statusDiv) {
                     statusDiv.textContent = 'Failed to start app: ' + error.message;
@@ -1961,10 +1954,8 @@
                     statusDiv.style.display = 'block';
                 }
 
-                // Also show alert as fallback
                 alert('Failed to start app: ' + error.message);
 
-                // Log detailed error info
                 console.error('Error details:', {
                     message: error.message,
                     stack: error.stack,
