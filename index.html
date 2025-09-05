@@ -457,10 +457,16 @@
         console.log('Deployment ID:', DEPLOYMENT_ID);
 
         // Throttled update system for dynamic recalculation
-        function throttleUpdate(key, callback) {
+        function throttleUpdate(key, callback, immediate = false) {
             // Clear existing timeout for this key
             if (appState.updateThrottles.has(key)) {
                 clearTimeout(appState.updateThrottles.get(key));
+            }
+
+            if (immediate) {
+                // Execute immediately and don't throttle
+                callback();
+                return;
             }
 
             // Set new timeout
@@ -1420,6 +1426,18 @@
             console.log('Updated relationships UI:', count, 'relationships');
         }
 
+        // Manual function to force update all relationships (for debugging)
+        async function forceUpdateAllRelationships() {
+            console.log('FORCE UPDATE: Manually triggering all relationship updates...');
+
+            for (const [relationshipId, relationship] of appState.relationships) {
+                console.log('Force updating relationship:', relationshipId);
+                await recalculateRelationship(relationshipId);
+            }
+
+            console.log('Force update completed');
+        }
+
         // Go to relationship items
         async function gotoRelationship(relationshipId) {
             try {
@@ -1653,6 +1671,7 @@
         window.selectParents = selectParents;
         window.renameRelationship = renameRelationship;
         window.deleteRelationship = deleteRelationship;
+        window.forceUpdateAllRelationships = forceUpdateAllRelationships;
 
         // Data validation and cleanup
         async function validateAndCleanData() {
