@@ -1267,15 +1267,7 @@
 
                     notes.push(note);
                 }
-
-                // Create connectors between notes
-                for (let i = 0; i < notes.length - 1; i++) {
-                    await miro.board.createConnector({
-                        start: { item: notes[i].id },
-                        end: { item: notes[i + 1].id },
-                        style: { strokeColor: 'gray' }
-                    });
-                }
+                await createSum();
 
                 showStatus(`Resource pool of ${quantity} ${resource.name}s created`, 'success');
                 console.log('Resource pool created:', quantity, resource.name);
