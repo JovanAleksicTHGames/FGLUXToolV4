@@ -647,27 +647,35 @@
         async function recalculateRelationship(relationshipId) {
             try {
                 const relationship = appState.relationships.get(relationshipId);
-                if (!relationship) return;
+                if (!relationship) {
+                    console.warn('Relationship not found for recalculation:', relationshipId);
+                    return;
+                }
 
-                console.log('Recalculating relationship:', relationshipId);
+                console.log('Recalculating relationship:', relationshipId, 'type:', relationship.type);
 
                 // Get current values from source notes
                 const currentValues = [];
                 let allSourcesValid = true;
+                const sourceContents = [];
 
                 for (const sourceId of relationship.sources) {
                     try {
                         const sourceItem = await miro.board.getById(sourceId);
                         const value = extractNumericValue(sourceItem.content);
 
+                        sourceContents.push(sourceItem.content);
+
                         if (value === null) {
+                            console.warn('Source item has no valid numeric value:', sourceId, 'content:', sourceItem.content);
                             allSourcesValid = false;
                             break;
                         }
 
                         currentValues.push(value);
+                        console.log('Source', sourceId, 'value:', value, 'content:', sourceItem.content);
                     } catch (e) {
-                        // Source item was deleted
+                        console.warn('Source item was deleted:', sourceId);
                         allSourcesValid = false;
                         break;
                     }
@@ -688,14 +696,19 @@
                 } else if (relationship.type === 'product') {
                     newResult = currentValues.reduce((acc, val) => acc * val, 1);
                 } else {
+                    console.warn('Unknown relationship type:', relationship.type);
                     return;
                 }
 
+                console.log('Calculated new result:', newResult, 'old result:', relationship.resultValue);
+
                 // Update result note if value changed
-                if (newResult !== relationship.resultValue) {
+                if (Math.abs(newResult - relationship.resultValue) > 0.001) { // Use small epsilon for floating point comparison
                     try {
                         const resultItem = await miro.board.getById(relationship.result);
                         const newContent = `${relationship.type === 'sum' ? 'Sum' : 'Product'}: ${newResult}`;
+
+                        console.log('Updating result note content from:', resultItem.content, 'to:', newContent);
 
                         resultItem.content = newContent;
                         await resultItem.sync();
@@ -708,19 +721,21 @@
                         await saveData();
                         await updateRelationshipsUI();
 
-                        console.log('Updated relationship result:', relationshipId, 'new value:', newResult);
+                        console.log('Successfully updated relationship result:', relationshipId, 'new value:', newResult);
+                        showStatus(`${relationship.type} updated: ${newResult}`, 'success');
 
                     } catch (e) {
-                        // Result item was deleted
-                        console.log('Result item deleted, cleaning up relationship:', relationshipId);
+                        console.warn('Result item deleted, cleaning up relationship:', relationshipId, e);
                         await cleanupRelationshipsForItem(relationship.result);
                         await updateRelationshipsUI();
                         await saveData();
                     }
+                } else {
+                    console.log('No significant change in result, skipping update');
                 }
 
             } catch (error) {
-                console.error('Error recalculating relationship:', error);
+                console.error('Error recalculating relationship:', relationshipId, error);
             }
         }
 
@@ -1267,7 +1282,15 @@
 
                     notes.push(note);
                 }
-                await createSum();
+
+                // Create connectors between notes
+                for (let i = 0; i < notes.length - 1; i++) {
+                    await miro.board.createConnector({
+                        start: { item: notes[i].id },
+                        end: { item: notes[i + 1].id },
+                        style: { strokeColor: 'gray' }
+                    });
+                }
 
                 showStatus(`Resource pool of ${quantity} ${resource.name}s created`, 'success');
                 console.log('Resource pool created:', quantity, resource.name);
@@ -1529,7 +1552,7 @@
                 // Delete all sticky notes in the relationship
                 for (const itemId of itemsToDelete) {
                     try {
-                        const item = await miro.board.getById({ itemId });
+                        const item = await miro.board.getById(itemId);
 
                         // Clear metadata before deletion
                         const metadata = await item.getMetadata('calculatorRelationship');
