@@ -1537,7 +1537,7 @@
                 // Delete all sticky notes in the relationship
                 for (const itemId of itemsToDelete) {
                     try {
-                        const item = await miro.board.getById(itemId);
+                        const item = await miro.board.getById({ itemId });
 
                         // Clear metadata before deletion
                         const metadata = await item.getMetadata('calculatorRelationship');
