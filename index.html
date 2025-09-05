@@ -643,10 +643,40 @@
 
                 await updateExistingResourceNotes(mapping[inputId], oldValue, value);
 
+                // IMPORTANT: After updating resource notes, check all relationships for updates
+                console.log('Checking all relationships for updates after global variable change...');
+                await checkAllRelationshipsForUpdates();
+
                 await saveData();
                 showStatus('Global variables updated and existing notes refreshed', 'success');
                 console.log('Updated global variable and existing notes:', inputId, '=', value);
             }
+        }
+
+        // Check all relationships for updates (used after global variable changes)
+        async function checkAllRelationshipsForUpdates() {
+            console.log('Checking all relationships for potential updates...');
+
+            for (const [relationshipId, relationship] of appState.relationships) {
+                console.log('Immediately checking relationship:', relationshipId);
+
+                // Use immediate execution for global variable changes
+                throttleUpdate(relationshipId, () => recalculateRelationship(relationshipId), true);
+            }
+
+            console.log(`Immediately triggered ${appState.relationships.size} relationship recalculations`);
+        }
+
+        // Manual function to force update all relationships (for debugging)
+        async function forceUpdateAllRelationships() {
+            console.log('FORCE UPDATE: Manually triggering all relationship updates...');
+
+            for (const [relationshipId, relationship] of appState.relationships) {
+                console.log('Force updating relationship:', relationshipId);
+                await recalculateRelationship(relationshipId);
+            }
+
+            console.log('Force update completed');
         }
 
         // Dynamic recalculation for relationships
@@ -743,6 +773,56 @@
             } catch (error) {
                 console.error('Error recalculating relationship:', relationshipId, error);
             }
+        }
+
+        // Extract numeric value from content
+        function extractNumericValue(content) {
+            if (!content || typeof content !== 'string') return null;
+
+            // Clean the content string
+            const cleanContent = content.trim();
+            if (!cleanContent) return null;
+
+            // Look for numbers in parentheses first: "Small Barrel (10.5)"
+            const parenMatch = cleanContent.match(/\((\d+(?:\.\d+)?)\)/);
+            if (parenMatch) {
+                const value = parseFloat(parenMatch[1]);
+                return isNaN(value) ? null : value;
+            }
+
+            // Look for Sum: or Product: patterns
+            const resultMatch = cleanContent.match(/(?:Sum|Product):\s*(\d+(?:\.\d+)?)/i);
+            if (resultMatch) {
+                const value = parseFloat(resultMatch[1]);
+                return isNaN(value) ? null : value;
+            }
+
+            // Look for standalone numbers at the beginning
+            const numberMatch = cleanContent.match(/^(\d+(?:\.\d+)?)(?:\s|$)/);
+            if (numberMatch) {
+                const value = parseFloat(numberMatch[1]);
+                return isNaN(value) ? null : value;
+            }
+
+            // Look for any number in the content as last resort
+            const anyNumberMatch = cleanContent.match(/(\d+(?:\.\d+)?)/);
+            if (anyNumberMatch) {
+                const value = parseFloat(anyNumberMatch[1]);
+                return isNaN(value) ? null : value;
+            }
+
+            return null;
+        }
+
+        // Check if content has numeric value
+        function hasNumericContent(content) {
+            return extractNumericValue(content) !== null;
+        }
+
+        // Check if a sticky note is a result from our calculator
+        function isResultNote(item) {
+            if (!item || !item.content) return false;
+            return item.content.includes('Sum:') || item.content.includes('Product:');
         }
 
         // Setup all event handlers for UI elements
@@ -861,13 +941,30 @@
                 await miro.board.ui.on('selection:update', handleSelectionChange);
                 console.log('Registered selection:update listener');
 
-                // Listen for item updates that might affect our relationships
-                await miro.board.ui.on('experimental:items:update', handleItemsUpdate);
-                console.log('Registered experimental:items:update listener');
+                // Try multiple event listeners for item updates since experimental:items:update might not work
+                try {
+                    await miro.board.ui.on('experimental:items:update', handleItemsUpdate);
+                    console.log('Registered experimental:items:update listener');
+                } catch (e) {
+                    console.warn('experimental:items:update not available:', e.message);
+                }
+
+                // Also try the standard items:update event
+                try {
+                    await miro.board.ui.on('items:update', handleItemsUpdate);
+                    console.log('Registered items:update listener');
+                } catch (e) {
+                    console.warn('items:update not available:', e.message);
+                }
 
                 // Listen for item deletion to clean up relationships
                 await miro.board.ui.on('items:delete', handleItemsDelete);
                 console.log('Registered items:delete listener');
+
+                // Start a periodic check for updates as a fallback
+                const updateCheckInterval = setInterval(checkForUpdates, 2000); // Check every 2 seconds
+                appState.intervals.add(updateCheckInterval);
+                console.log('Started periodic update check (2s interval)');
 
                 console.log('Miro event listeners setup complete');
 
@@ -889,6 +986,8 @@
         // Handle item updates - triggers dynamic recalculation
         async function handleItemsUpdate(event) {
             try {
+                console.log('Items update event received:', event);
+
                 if (event.items) {
                     for (const item of event.items) {
                         // Find relationships that involve this item as a source
@@ -900,6 +999,8 @@
                             }
                         }
 
+                        console.log(`Item ${item.id} affects ${affectedRelationships.length} relationships`);
+
                         // Throttle recalculation for each affected relationship
                         for (const relationshipId of affectedRelationships) {
                             throttleUpdate(relationshipId, () => recalculateRelationship(relationshipId));
@@ -908,6 +1009,69 @@
                 }
             } catch (error) {
                 console.error('Error handling items update:', error);
+            }
+        }
+
+        // Periodic check for updates as fallback when events don't work
+        async function checkForUpdates() {
+            try {
+                if (appState.relationships.size === 0) return;
+
+                // Check all relationships for changes in source values
+                for (const [relationshipId, relationship] of appState.relationships) {
+                    let needsUpdate = false;
+                    const currentValues = [];
+                    const sourceDetails = [];
+
+                    for (const sourceId of relationship.sources) {
+                        try {
+                            const sourceItem = await miro.board.getById(sourceId);
+                            const currentValue = extractNumericValue(sourceItem.content);
+
+                            sourceDetails.push({
+                                id: sourceId,
+                                content: sourceItem.content,
+                                value: currentValue
+                            });
+
+                            if (currentValue === null) {
+                                console.warn('Source item lost numeric value:', sourceId, sourceItem.content);
+                                needsUpdate = true;
+                                break;
+                            }
+
+                            currentValues.push(currentValue);
+                        } catch (e) {
+                            console.warn('Source item was deleted:', sourceId);
+                            needsUpdate = true;
+                            break;
+                        }
+                    }
+
+                    // Check if values have changed
+                    if (!needsUpdate && currentValues.length === relationship.values.length) {
+                        for (let i = 0; i < currentValues.length; i++) {
+                            if (Math.abs(currentValues[i] - relationship.values[i]) > 0.001) {
+                                console.log('Detected value change in relationship:', relationshipId);
+                                console.log('Old values:', relationship.values);
+                                console.log('New values:', currentValues);
+                                console.log('Source details:', sourceDetails);
+                                needsUpdate = true;
+                                break;
+                            }
+                        }
+                    } else if (!needsUpdate) {
+                        console.log('Value array length changed for relationship:', relationshipId);
+                        needsUpdate = true;
+                    }
+
+                    if (needsUpdate) {
+                        console.log('Triggering recalculation for relationship:', relationshipId);
+                        throttleUpdate(relationshipId, () => recalculateRelationship(relationshipId));
+                    }
+                }
+            } catch (error) {
+                console.error('Error in periodic update check:', error);
             }
         }
 
@@ -981,36 +1145,6 @@
             } catch (error) {
                 console.error('Error updating selection status:', error);
             }
-        }
-
-        // Extract numeric value from content
-        function extractNumericValue(content) {
-            if (!content) return null;
-
-            // Look for numbers in parentheses first: "Small Barrel (10)"
-            const parenMatch = content.match(/\((\d+(?:\.\d+)?)\)/);
-            if (parenMatch) {
-                return parseFloat(parenMatch[1]);
-            }
-
-            // Look for standalone numbers
-            const numberMatch = content.match(/(\d+(?:\.\d+)?)/);
-            if (numberMatch) {
-                return parseFloat(numberMatch[1]);
-            }
-
-            return null;
-        }
-
-        // Check if content has numeric value
-        function hasNumericContent(content) {
-            return extractNumericValue(content) !== null;
-        }
-
-        // Check if a sticky note is a result from our calculator
-        function isResultNote(item) {
-            if (!item || !item.content) return false;
-            return item.content.includes('Sum:') || item.content.includes('Product:');
         }
 
         // Create sum calculation
@@ -1391,13 +1525,20 @@
         // Update relationships UI
         async function updateRelationshipsUI() {
             const count = appState.relationships.size;
+
+            // Safely update count - element might not exist
             const countElement = safeGetElement('relationshipCount');
             if (countElement) {
                 countElement.textContent = count;
+            } else {
+                console.warn('relationshipCount element not found, but continuing...');
             }
 
             const content = safeGetElement('relationshipsContent');
-            if (!content) return;
+            if (!content) {
+                console.warn('relationshipsContent element not found');
+                return;
+            }
 
             if (count === 0) {
                 content.innerHTML = 'No calculator relationships found';
@@ -1424,18 +1565,6 @@
     `).join('');
 
             console.log('Updated relationships UI:', count, 'relationships');
-        }
-
-        // Manual function to force update all relationships (for debugging)
-        async function forceUpdateAllRelationships() {
-            console.log('FORCE UPDATE: Manually triggering all relationship updates...');
-
-            for (const [relationshipId, relationship] of appState.relationships) {
-                console.log('Force updating relationship:', relationshipId);
-                await recalculateRelationship(relationshipId);
-            }
-
-            console.log('Force update completed');
         }
 
         // Go to relationship items
