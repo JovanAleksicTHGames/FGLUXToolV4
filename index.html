@@ -428,8 +428,8 @@
     <script>
         // The complete JavaScript code goes here, as provided in the previous snippets.
         // Miro Resource Calculator App - SDK v2 Compatible
-        // Clean version without reference errors
-        console.log('Miro Resource Calculator v2.0 - Loading...', new Date().toISOString());
+        // Complete JavaScript with dynamic updates, proper cleanup, and memory management
+        console.log('Miro Resource Calculator v2.1 - Loading...', new Date().toISOString());
 
         // Global state management
         let appState = {
@@ -443,7 +443,7 @@
             },
             isRelationshipsVisible: false,
             initialized: false,
-            eventListeners: new Map(),
+            updateThrottles: new Map(),
             intervals: new Set(),
             timeouts: new Set()
         };
@@ -451,9 +451,57 @@
         // App metadata keys for persistence
         const RELATIONSHIPS_KEY = 'calculatorRelationships';
         const GLOBAL_VARS_KEY = 'globalVariables';
-        const APP_VERSION = '2.0.0';
+        const APP_VERSION = '2.1.0';
         const DEPLOYMENT_ID = Date.now();
+        const UPDATE_THROTTLE_DELAY = 500; // 500ms throttle
         console.log('Deployment ID:', DEPLOYMENT_ID);
+
+        // Throttled update system for dynamic recalculation
+        function throttleUpdate(key, callback) {
+            // Clear existing timeout for this key
+            if (appState.updateThrottles.has(key)) {
+                clearTimeout(appState.updateThrottles.get(key));
+            }
+
+            // Set new timeout
+            const timeoutId = setTimeout(() => {
+                callback();
+                appState.updateThrottles.delete(key);
+            }, UPDATE_THROTTLE_DELAY);
+
+            appState.updateThrottles.set(key, timeoutId);
+            appState.timeouts.add(timeoutId);
+        }
+
+        // Clean up all throttled updates
+        function cleanupThrottles() {
+            for (const timeoutId of appState.updateThrottles.values()) {
+                clearTimeout(timeoutId);
+            }
+            appState.updateThrottles.clear();
+        }
+
+        // Memory cleanup function
+        function cleanupMemory() {
+            console.log('Cleaning up memory...');
+
+            // Clear all throttled updates
+            cleanupThrottles();
+
+            // Clear any intervals
+            for (const intervalId of appState.intervals) {
+                clearInterval(intervalId);
+            }
+            appState.intervals.clear();
+
+            // Clear any timeouts
+            for (const timeoutId of appState.timeouts) {
+                clearTimeout(timeoutId);
+            }
+            appState.timeouts.clear();
+
+            console.log('Memory cleanup completed');
+        }
 
         // Utility: Wait for DOM to be ready
         function waitForDOM() {
@@ -592,6 +640,87 @@
                 await saveData();
                 showStatus('Global variables updated and existing notes refreshed', 'success');
                 console.log('Updated global variable and existing notes:', inputId, '=', value);
+            }
+        }
+
+        // Dynamic recalculation for relationships
+        async function recalculateRelationship(relationshipId) {
+            try {
+                const relationship = appState.relationships.get(relationshipId);
+                if (!relationship) return;
+
+                console.log('Recalculating relationship:', relationshipId);
+
+                // Get current values from source notes
+                const currentValues = [];
+                let allSourcesValid = true;
+
+                for (const sourceId of relationship.sources) {
+                    try {
+                        const sourceItem = await miro.board.getById(sourceId);
+                        const value = extractNumericValue(sourceItem.content);
+
+                        if (value === null) {
+                            allSourcesValid = false;
+                            break;
+                        }
+
+                        currentValues.push(value);
+                    } catch (e) {
+                        // Source item was deleted
+                        allSourcesValid = false;
+                        break;
+                    }
+                }
+
+                if (!allSourcesValid) {
+                    console.log('Some sources invalid, cleaning up relationship:', relationshipId);
+                    await cleanupRelationshipsForItem(relationship.result);
+                    await updateRelationshipsUI();
+                    await saveData();
+                    return;
+                }
+
+                // Calculate new result
+                let newResult;
+                if (relationship.type === 'sum') {
+                    newResult = currentValues.reduce((acc, val) => acc + val, 0);
+                } else if (relationship.type === 'product') {
+                    newResult = currentValues.reduce((acc, val) => acc * val, 1);
+                } else {
+                    return;
+                }
+
+                // Update result note if value changed
+                if (newResult !== relationship.resultValue) {
+                    try {
+                        const resultItem = await miro.board.getById(relationship.result);
+                        const newContent = `${relationship.type === 'sum' ? 'Sum' : 'Product'}: ${newResult}`;
+
+                        resultItem.content = newContent;
+                        await resultItem.sync();
+
+                        // Update relationship data
+                        relationship.values = currentValues;
+                        relationship.resultValue = newResult;
+                        relationship.lastUpdated = Date.now();
+
+                        await saveData();
+                        await updateRelationshipsUI();
+
+                        console.log('Updated relationship result:', relationshipId, 'new value:', newResult);
+
+                    } catch (e) {
+                        // Result item was deleted
+                        console.log('Result item deleted, cleaning up relationship:', relationshipId);
+                        await cleanupRelationshipsForItem(relationship.result);
+                        await updateRelationshipsUI();
+                        await saveData();
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error recalculating relationship:', error);
             }
         }
 
@@ -736,15 +865,26 @@
             }
         }
 
-        // Handle item updates
+        // Handle item updates - triggers dynamic recalculation
         async function handleItemsUpdate(event) {
             try {
                 if (event.items) {
                     for (const item of event.items) {
-                        await updateRelationshipsForItem(item.id);
+                        // Find relationships that involve this item as a source
+                        const affectedRelationships = [];
+
+                        for (const [relationshipId, relationship] of appState.relationships) {
+                            if (relationship.sources.includes(item.id)) {
+                                affectedRelationships.push(relationshipId);
+                            }
+                        }
+
+                        // Throttle recalculation for each affected relationship
+                        for (const relationshipId of affectedRelationships) {
+                            throttleUpdate(relationshipId, () => recalculateRelationship(relationshipId));
+                        }
                     }
                 }
-                await updateRelationshipsUI();
             } catch (error) {
                 console.error('Error handling items update:', error);
             }
@@ -1376,29 +1516,52 @@
             console.log('Rename cancelled');
         }
 
-        // Delete relationship
+        // Delete relationship - NOW DELETES ALL STICKY NOTES AND CLEARS METADATA
         async function deleteRelationship(relationshipId) {
             try {
                 const relationship = appState.relationships.get(relationshipId);
                 if (!relationship) return;
 
-                if (!confirm(`Delete relationship "${relationship.name}"?`)) return;
+                if (!confirm(`Delete relationship "${relationship.name}" and all its sticky notes?`)) return;
 
-                // Remove relationship
-                appState.relationships.delete(relationshipId);
-
-                // Clean up metadata from result note
-                try {
-                    const resultItem = await miro.board.getById(relationship.result);
-                    await resultItem.setMetadata('calculatorRelationship', null);
-                } catch (e) {
-                    console.log('Result item not found or already deleted');
+                // Cancel any pending updates for this relationship
+                if (appState.updateThrottles.has(relationshipId)) {
+                    clearTimeout(appState.updateThrottles.get(relationshipId));
+                    appState.updateThrottles.delete(relationshipId);
                 }
+
+                // Collect all items to delete (sources + result)
+                const itemsToDelete = [...relationship.sources, relationship.result];
+                const deletedItems = [];
+
+                // Delete all sticky notes in the relationship
+                for (const itemId of itemsToDelete) {
+                    try {
+                        const item = await miro.board.getById(itemId);
+
+                        // Clear metadata before deletion
+                        const metadata = await item.getMetadata('calculatorRelationship');
+                        if (metadata) {
+                            await item.setMetadata('calculatorRelationship', null);
+                        }
+
+                        // Delete the item using Miro SDK v2 method
+                        await item.remove();
+                        deletedItems.push(itemId);
+                        console.log('Deleted sticky note:', itemId);
+
+                    } catch (e) {
+                        console.log('Item not found or already deleted:', itemId);
+                    }
+                }
+
+                // Remove relationship from app state
+                appState.relationships.delete(relationshipId);
 
                 await saveData();
                 await updateRelationshipsUI();
-                showStatus('Relationship deleted', 'success');
-                console.log('Relationship deleted:', relationshipId);
+                showStatus(`Relationship deleted - removed ${deletedItems.length} sticky notes`, 'success');
+                console.log('Relationship deleted:', relationshipId, 'Items deleted:', deletedItems.length);
 
             } catch (error) {
                 console.error('Error deleting relationship:', error);
@@ -1409,27 +1572,6 @@
         // Utility functions
         function generateRelationshipId() {
             return `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        }
-
-        async function updateRelationshipsForItem(itemId) {
-            // Check if this item is part of any relationships and update if needed
-            for (const [id, relationship] of appState.relationships) {
-                if (relationship.sources.includes(itemId) || relationship.result === itemId) {
-                    try {
-                        const item = await miro.board.getById(itemId);
-                        // Update relationship data if needed
-                        if (relationship.result === itemId && item.content) {
-                            // Update result value if result note content changed
-                            const match = item.content.match(/(Sum|Product): ([\d.]+)/);
-                            if (match) {
-                                relationship.resultValue = parseFloat(match[2]);
-                            }
-                        }
-                    } catch (e) {
-                        console.log('Item not found during update:', itemId);
-                    }
-                }
-            }
         }
 
         async function cleanupRelationshipsForItem(itemId) {
@@ -1443,6 +1585,12 @@
             }
 
             for (const id of toDelete) {
+                // Cancel any pending updates for this relationship
+                if (appState.updateThrottles.has(id)) {
+                    clearTimeout(appState.updateThrottles.get(id));
+                    appState.updateThrottles.delete(id);
+                }
+
                 appState.relationships.delete(id);
                 console.log('Cleaned up relationship:', id);
             }
@@ -1457,11 +1605,13 @@
             statusDiv.className = type;
             statusDiv.style.display = 'block';
 
-            setTimeout(() => {
+            const timeoutId = setTimeout(() => {
                 if (statusDiv) {
                     statusDiv.style.display = 'none';
                 }
             }, 3000);
+
+            appState.timeouts.add(timeoutId);
 
             console.log(`Status [${type}]:`, message);
         }
@@ -1578,7 +1728,8 @@
                 await updateRelationshipsUI();
 
                 // Start periodic data validation
-                setInterval(validateAndCleanData, 30000);
+                const validationInterval = setInterval(validateAndCleanData, 30000);
+                appState.intervals.add(validationInterval);
                 console.log('Started periodic data validation (30s interval)');
 
                 // Mark as initialized
@@ -1600,12 +1751,26 @@
             showStatus('An unexpected error occurred', 'error');
         });
 
+        // Cleanup when page unloads
+        window.addEventListener('beforeunload', () => {
+            console.log('Cleaning up before page unload...');
+            cleanupMemory();
+        });
+
+        // Cleanup when app is hidden/paused
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('App hidden, cleaning up throttles...');
+                cleanupThrottles();
+            }
+        });
+
         // Start the app
         async function startApp() {
             try {
                 console.log('Starting Miro Resource Calculator App...');
-                console.log('Deployment ID:', DEPLOYMENT_ID);
                 console.log('App Version:', APP_VERSION);
+                console.log('Deployment ID:', DEPLOYMENT_ID);
 
                 // Wait for DOM to be ready
                 await waitForDOM();
@@ -1640,15 +1805,15 @@
                 console.error('Error details:', {
                     message: error.message,
                     stack: error.stack,
-                    deploymentId: DEPLOYMENT_ID,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    deploymentId: DEPLOYMENT_ID
                 });
             }
         }
 
         // Start the app immediately
         startApp();
-        
+
     </script>
 </body>
 </html>
